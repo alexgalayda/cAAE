@@ -1,0 +1,14 @@
+FROM nvcr.io/nvidia/tensorrt:19.12-py3 as base
+#ARG HCP
+WORKDIR /root
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN rm requirements.txt
+COPY copy_dataset.py copy_dataset.py
+RUN mkdir .aws
+COPY credentials .aws/
+#RUN echo TEST:${HCP}
+#ENV {}
+#RUN mkdir HCP
+#CMD bash
+CMD ["python3", "copy_dataset.py"]
