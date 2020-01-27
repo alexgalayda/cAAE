@@ -48,12 +48,9 @@ else
 	GPU="device=$GPU"
 fi
 
-cp ../requirements.txt .
-cp ../credentials .
-cp ../copy_dataset.py .
 echo Building Docker container...
 docker build \
-        -f Dockerfile.get_dataset \
+        -f ./get_dataset/Dockerfile \
         -t caae_image \
         .
 
@@ -72,26 +69,26 @@ then
         	-it \
         	-v $MOUNT_DIR:/root/HCP/ \
         	-v $SHARA:/root/shara/ \
-		--env-file var.env \
+		--env-file ./get_dataset/var.env \
         	caae_image
 
 else
         docker run \
 	        --name caae_doc \
-        	--gpus $GPU \
         	-it \
         	-v $MOUNT_DIR:/root/HCP/ \
-        	--env-file var.env \
         	caae_image
 fi
 
-cp -r ../model .
+cp -r ../model ./train/
 
 echo Building Docker container...
 docker build \
-        -f Dockerfile.nn \
+        -f ./train/Dockerfile \
         -t caae_image_nn \
         .
+
+rm -rf ./train/model
 
 echo running Adversarial Autoencoder example
 if [ -n "$SHARA" ]
@@ -102,15 +99,17 @@ then
                 -it \
                 -v $MOUNT_DIR:/root/HCP/:ro \
                 -v $SHARA:/root/shara/ \
-                --env-file var.env \
-                caae_image
-
+                caae_image_nn
 else
         docker run \
                 --name caae_doc_nn \
                 --gpus $GPU \
                 -it \
                 -v $MOUNT_DIR:/root/HCP/:ro \
-                --env-file var.env \
-                caae_image_nn
+		caae_image_nn
 fi
+#                --env-file var.env \
+#                caae_image_nn
+#fi
+
+
