@@ -3,22 +3,22 @@
 
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = 'GPU_NAME'
+import argparse
+#Задается в настройках докера
+#os.environ['CUDA_VISIBLE_DEVICES'] = 'GPU_NAME'
 import numpy as np
 import tensorflow as tf
 import tensorlayer as tl
 from model import encoder, decoder, discriminator
 
 import import_dataset as datasets
-from funcs.preproc import *
-
-import argparse
+# from funcs.preproc import *
 
 # Parameters
-BATCH_SIZE =64
+BATCH_SIZE = 64
 EPOCHS = 300
 LR = 2e-5
-WEIGHT=0.5
+WEIGHT = 0.5
 results_path = './Results/Adversarial_Autoencoder'
 
 def form_results():
@@ -38,18 +38,18 @@ def form_results():
         os.mkdir(log_path)
     return tensorboard_path, saved_model_path, log_path, folder_name
 
-def train(z_dim=None, model_name=None):
+def train(wd, z_dim=None, model_name=None):
     """
     Used to train the autoencoder by passing in the necessary inputs.
     :param train_model: True -> Train the model, False -> Load the latest trained model and show the image grid.
     :return: does not return anything
     """
-    X_train, y_train = datasets.create_datasets(retrain=0, task="aae_wgan_" + str(z_dim),
-                                                num_aug=0)
-
+    #hint: num_aug=0 delete
+    X_train, y_train = datasets.create_datasets(wd=wd, retrain=0, task="aae_wgan_" + str(z_dim))#, num_aug=0)
+    print(X_train, y_train)
     batch_size = BATCH_SIZE
     input_dim = X_train.shape[-1]
-
+    # assert False, 'lol train'
     with tf.device("/gpu:0"):
         sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         x_input = tf.placeholder(dtype=tf.float32, shape=[batch_size, input_dim, input_dim, 1],
@@ -259,5 +259,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', type=str, default='None', help='model to retrain on')
     parser.add_argument('--z_dim', type=str, default='None', help='model comment')
+    parser.add_argument('--dataset_dir', type=str, default='/root/HCP/T2w_restore/', help='path to train dataset')
     args = parser.parse_args()
-    train(z_dim=args.z_dim, model_name=args.model_name)
+    train(wd=args.dataset_dir, z_dim=args.z_dim, model_name=args.model_name)
