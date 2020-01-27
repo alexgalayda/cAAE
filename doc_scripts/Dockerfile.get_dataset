@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorrt:19.12-py3 as base
+FROM nvcr.io/nvidia/tensorrt:19.12-py3
 #ARG HCP
 WORKDIR /root
 COPY requirements.txt requirements.txt

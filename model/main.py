@@ -12,6 +12,8 @@ from model import encoder, decoder, discriminator
 import import_dataset as datasets
 from funcs.preproc import *
 
+import argparse
+
 # Parameters
 BATCH_SIZE =64
 EPOCHS = 300
@@ -254,8 +256,6 @@ def train(z_dim=None, model_name=None):
 
 
 if __name__ == '__main__':
-    import argparse
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', type=str, default='None', help='model to retrain on')
     parser.add_argument('--z_dim', type=str, default='None', help='model comment')
