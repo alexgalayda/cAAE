@@ -4,7 +4,7 @@ code for Unsupervised Detection of Lesions in Brain MRI using constrained advers
 
 AAE model is implemented based on [this github repo](https://github.com/Naresh1318/Adversarial_Autoencoder)
 
-Required: python>=3.6, tensorlayer, tensorflow>=2.0, numpy
+Required: python>=3.6, tensorlayer, tensorflow>=1.0, numpy
 
 train model:  python main.py --model_name "cAAE" --z_dim "128"
 
