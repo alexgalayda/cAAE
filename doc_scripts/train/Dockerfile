@@ -3,7 +3,7 @@ FROM nvcr.io/nvidia/tensorflow:19.06-py3
 
 
 WORKDIR /root
-ADD ./train/model /root/lol/
+ADD ./train/model /root/model/
 #ADD model /root/
 
 COPY ./train/requirements.txt requirements.txt
