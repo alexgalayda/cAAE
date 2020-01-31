@@ -1,4 +1,5 @@
-from tensorlayer.layers import *
+import tensorflow as tf
+from tensorlayer.layers import set_name_reuse, InputLayer, Conv2d,  BatchNormLayer, DenseLayer
 from funcs.resblocks import ResBlock, ResBlockDown, ResBlockUp
 
 # The autoencoder network
@@ -9,26 +10,33 @@ def encoder(x, z_dim, reuse=False, is_train=True):
     :param reuse: True -> Reuse the encoder variables, False -> Create or search of variables before creating
     :return: tensor which is the hidden latent variable of the autoencoder.
     """
-    input_dim = x.shape[-1]
+    # assert False, x.shape
+    input_dim = x.shape[0]
     image_size = input_dim
-    s2, s4, s8, s16 = int(image_size / 2), int(image_size / 4), int(image_size / 8), int(image_size / 16)
+    # s2, s4, s8, s16 = int(image_size / 2), int(image_size / 4), int(image_size / 8), int(image_size / 16)
+    # assert False, [image_size, x.shape]
+    s2, s4, s8, s16 = image_size // 2, image_size // 4, image_size // 8, image_size // 16
     gf_dim = 16  # Dimension of gen filters in first conv layer. [64]
     ft_size = 3
     with tf.variable_scope("Encoder", reuse=reuse):
+
         # x,y,z,_ = tf.shape(input_images)
         set_name_reuse(reuse)
-
         w_init = tf.truncated_normal_initializer(stddev=0.02)
         b_init = tf.constant_initializer(value=0.0)
         gamma_init = tf.random_normal_initializer(1., 0.01)
-
         inputs = InputLayer(x, name='e_inputs')
-        conv1 = Conv2d(inputs, gf_dim, (ft_size, ft_size), act=tf.nn.leaky_relu(x, 0.2),
-                       padding='SAME',W_init=w_init, b_init=b_init, name="e_conv1")
-        conv1 = BatchNormLayer(conv1, act=tf.nn.leaky_relu(x, 0.2), is_train=is_train,
-                               gamma_init=gamma_init, name='e_bn1')
+
+        # conv1 = Conv2d(inputs, gf_dim, (ft_size, ft_size), act=tf.nn.leaky_relu(x, 0.2), padding='SAME', W_init=w_init, b_init=b_init, name="e_conv1")
+        # conv1 = BatchNormLayer(conv1, act=tf.nn.leaky_relu(x, 0.2), is_train=is_train,
+        #                        gamma_init=gamma_init, name='e_bn1')
+        conv1 = Conv2d(inputs, gf_dim, (ft_size, ft_size), act=tf.nn.leaky_relu, padding='SAME', W_init=w_init,
+                       b_init=b_init, name="e_conv1")
+        conv1 = BatchNormLayer(conv1, act=tf.nn.leaky_relu, is_train=is_train,
+                                   gamma_init=gamma_init, name='e_bn1')
         # image_size * image_size
         res1 = ResBlockDown(conv1.outputs, gf_dim, "res1", reuse, is_train)
+
 
         # s2*s2
         res2 = ResBlockDown(res1, gf_dim * 2, "res2", reuse, is_train)
@@ -38,9 +46,11 @@ def encoder(x, z_dim, reuse=False, is_train=True):
 
         # s8*s8
         res4 = ResBlockDown(res3, gf_dim * 8, "res4", reuse, is_train)
-
+        # print([-1, s16 * s16 * gf_dim * 16])
+        # assert False, 'lok {} {} {}'.format(s16, gf_dim, s16 * s16 * gf_dim * 16)
         # s16*s16
         h_flat = tf.reshape(res4, shape=[-1, s16 * s16 * gf_dim * 16])
+
         h_flat = InputLayer(h_flat, name='e_reshape')
         net_h = DenseLayer(h_flat, n_units=z_dim, act=tf.identity, name="e_dense_mean")
     return net_h.outputs
@@ -53,9 +63,11 @@ def decoder(x, reuse=False, is_train=True):
     :param reuse: True -> Reuse the decoder variables, False -> Create or search of variables before creating
     :return: tensor which should ideally be the input given to the encoder.
     """
-    input_dim = x.shape[-1]
+    # input_dim = x.shape[-1]
+    input_dim = x.shape[0]
     image_size = input_dim
-    s2, s4, s8, s16 = int(image_size / 2), int(image_size / 4), int(image_size / 8), int(image_size / 16)
+    # s2, s4, s8, s16 = int(image_size / 2), int(image_size / 4), int(image_size / 8), int(image_size / 16)
+    s2, s4, s8, s16 = image_size // 2, image_size // 4, image_size // 8, image_size // 16
     gf_dim = 16  # Dimension of gen filters in first conv layer. [64]
     c_dim = 1  # n_color 3
     ft_size = 3
@@ -67,11 +79,18 @@ def decoder(x, reuse=False, is_train=True):
         inputs = InputLayer(x, name='g_inputs')
 
         # s16*s16
-        z_develop = DenseLayer(inputs, s16 * s16 * gf_dim * 16, act=tf.nn.leaky_relu(x, 0.2),
+        # z_develop = DenseLayer(inputs, s16 * s16 * gf_dim * 16, act=tf.nn.leaky_relu(x, 0.2),
+        #                        name='g_dense_z')
+        # z_develop = tf.reshape(z_develop.outputs, [-1, s16, s16, gf_dim * 16])
+        # z_develop = InputLayer(z_develop, name='g_reshape')
+        # conv1 = Conv2d(z_develop, gf_dim * 8, (ft_size, ft_size), act=tf.nn.leaky_relu(x, 0.2),
+        #                padding='SAME', W_init=w_init, b_init=b_init, name="g_conv1")
+
+        z_develop = DenseLayer(inputs, s16 * s16 * gf_dim * 16, act=tf.nn.leaky_relu,
                                name='g_dense_z')
         z_develop = tf.reshape(z_develop.outputs, [-1, s16, s16, gf_dim * 16])
         z_develop = InputLayer(z_develop, name='g_reshape')
-        conv1 = Conv2d(z_develop, gf_dim * 8, (ft_size, ft_size), act=tf.nn.leaky_relu(x, 0.2),
+        conv1 = Conv2d(z_develop, gf_dim * 8, (ft_size, ft_size), act=tf.nn.leaky_relu,
                        padding='SAME', W_init=w_init, b_init=b_init, name="g_conv1")
 
         # s16*s16
@@ -110,12 +129,19 @@ def discriminator(x, reuse=False):
     with tf.variable_scope("Discriminator", reuse=reuse):
         set_name_reuse(reuse)
         net_in = InputLayer(x, name='dc/in')
+        #
+        # net_h0 = DenseLayer(net_in, n_units=n_l1,
+        #                     W_init=w_init,
+        #                     act=tf.nn.leaky_relu(x, 0.2), name='dc/h0/lin')
+        # net_h1 = DenseLayer(net_h0, n_units=n_l2,
+        #                     W_init=w_init,
+        #                     act=tf.nn.leaky_relu(x, 0.2), name='dc/h1/lin')
         net_h0 = DenseLayer(net_in, n_units=n_l1,
                             W_init=w_init,
-                            act=tf.nn.leaky_relu(x, 0.2), name='dc/h0/lin')
+                            act=tf.nn.leaky_relu, name='dc/h0/lin')
         net_h1 = DenseLayer(net_h0, n_units=n_l2,
                             W_init=w_init,
-                            act=tf.nn.leaky_relu(x, 0.2), name='dc/h1/lin')
+                            act=tf.nn.leaky_relu, name='dc/h1/lin')
         net_h2 = DenseLayer(net_h1, n_units=1,
                             W_init=w_init,
                             act=tf.identity, name='dc/h2/lin')

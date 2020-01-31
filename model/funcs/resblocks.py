@@ -65,12 +65,13 @@ def ResBlockUp(inputs, input_size, batch_size, filters, scope_name, reuse, phase
                          W_init=w_init, b_init=b_init, name="deconv1")
         conv1 = BatchNormLayer(conv1, act=tf.nn.leaky_relu, is_train=phase_train,
                                gamma_init=gamma_init, name='bn1')
-        conv2 = DeConv2d(conv1, filters / 2, (3, 3), (input_size * 2, input_size * 2), (1, 1), act=None, padding='SAME',
+        # assert False, (type(filters / 2), filters / 2)
+        conv2 = DeConv2d(conv1, filters // 2, (3, 3), (input_size * 2, input_size * 2), (1, 1), act=None, padding='SAME',
                          batch_size=batch_size, W_init=w_init, b_init=b_init, name="deconv2")
         conv2 = BatchNormLayer(conv2, act=tf.nn.leaky_relu, is_train=phase_train,
                                gamma_init=gamma_init, name='bn2')
 
-        conv3 = DeConv2d(input_layer, filters / 2, (3, 3), (input_size * 2, input_size * 2), (2, 2), act=None,
+        conv3 = DeConv2d(input_layer, filters // 2, (3, 3), (input_size * 2, input_size * 2), (2, 2), act=None,
                          padding='SAME',
                          batch_size=batch_size, W_init=w_init, b_init=b_init, name="conv3")
         conv3 = BatchNormLayer(conv3, act=tf.nn.leaky_relu, is_train=phase_train,

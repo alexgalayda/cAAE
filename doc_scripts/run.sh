@@ -6,6 +6,7 @@ GPU=ALL
 SHARA=""
 #./run.sh -g 3 -s ~/vaegan/shara
 # python3 main.py --model_name "cAAE" --z_dim "128"
+# cp -r ~/vaegan/shara/model ../model
 while [[ $# -gt 0 ]]
 do
 key="$1"

@@ -8,7 +8,7 @@ from funcs import preproc
 def get_id(name):
     return int(name.split("_")[-1].split(".")[0])
 
-# hint: вынес 'wd' в параметры
+
 def create_datasets(wd, retrain=False, task=None, labels=False, ds_scale=0):
     # wd = "./Data/CamCAN_unbiased/CamCAN/T2w"
     # os.chdir(wd)
@@ -16,8 +16,8 @@ def create_datasets(wd, retrain=False, task=None, labels=False, ds_scale=0):
     # subject_id = np.array([i for i in glob.glob(wd+"/*") if '.txt' not in i and 'normalized' in i])
     test_flg = 1
     if test_flg:
-        subject_id = np.array([subject for subject in os.listdir(wd)[:5]])
-        subject_train_idx = random.sample(range(len(subject_id)), 3)
+        subject_id = np.array([subject for subject in os.listdir(wd)[:3]])
+        subject_train_idx = random.sample(range(len(subject_id)), 2)
         subject_train = subject_id[subject_train_idx]
         subject_test = [i for i in subject_id if i not in subject_train]
     else:
@@ -35,7 +35,7 @@ def create_datasets(wd, retrain=False, task=None, labels=False, ds_scale=0):
         subject_train = np.genfromtxt(str(task)+"_subject_train.txt", dtype=str, delimiter=',')
         subject_test = np.genfromtxt(str(task)+"_subject_test.txt", dtype=str, delimiter=',')
 
-    print(f"retrain is {retrain}")
+    # print(f"retrain is {retrain}")
     # print(str(task)+f"training subject ids: {subject_train}")
     # print(str(task)+f"testing subject ids: {subject_test}")
 
@@ -46,7 +46,6 @@ def create_datasets(wd, retrain=False, task=None, labels=False, ds_scale=0):
     X_dev_target = []
     X_dev_target_all = []
 
-    # assert False, 'lol create_dataset'
 
     for i in subject_train:
         print(i)
@@ -75,7 +74,6 @@ def create_datasets(wd, retrain=False, task=None, labels=False, ds_scale=0):
             z = np.genfromtxt(os.path.join(os.path.dirname(os.path.dirname(wd)), wd.split('/')[-2]+'_labels', i.split('.')[0] + "_label.txt"))
             assert len(z) == len(idx)
             X_train_target.extend(z)
-
         if ds_scale != 0:
             img = preproc.downsample_image(img[np.newaxis, :, :, :], ds_scale)
         X_train_input.extend(img)

@@ -1,4 +1,7 @@
-FROM nvcr.io/nvidia/tensorflow:19.12-tf2-py3
+FROM nvcr.io/nvidia/tensorflow:19.06-py3
+#FROM tensorflow/tensorflow:latest
+
+
 WORKDIR /root
 ADD ./train/model /root/lol/
 #ADD model /root/
@@ -6,10 +9,6 @@ ADD ./train/model /root/lol/
 COPY ./train/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
-#COPY copy_dataset.py copy_dataset.py
-#RUN mkdir .aws
-#COPY credentials .aws/
-
 
 
 #RUN echo TEST:${HCP}

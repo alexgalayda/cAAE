@@ -1,12 +1,14 @@
 # python -m pdb aae_wgan.py --load 0 --comment "aae wgan" --model_name "None" --step "0"
 # python -m pdb aae_wgan.py --load 1 --comment "2018-02-22 12:40:34.603793_35_Adversarial_Autoencoder_WGAN retrain" --model_name "2018-02-22 12:40:34.603793_35_Adversarial_Autoencoder_WGAN" --step "-4933"
 
-
 import os
 import argparse
-#Задается в настройках докера
-#os.environ['CUDA_VISIBLE_DEVICES'] = 'GPU_NAME'
 import numpy as np
+
+# no longer needed, set in docker
+# os.environ['CUDA_VISIBLE_DEVICES'] = 'GPU_NAME'
+# we use this so that code written in tf 1.X works in tf 2.0
+# import tensorflow.compat.v1 as tf
 import tensorflow as tf
 import tensorlayer as tl
 from model import encoder, decoder, discriminator
@@ -46,10 +48,10 @@ def train(wd, z_dim=None, model_name=None):
     """
     #hint: num_aug=0 delete
     X_train, y_train = datasets.create_datasets(wd=wd, retrain=0, task="aae_wgan_" + str(z_dim))#, num_aug=0)
-    print(X_train, y_train)
     batch_size = BATCH_SIZE
     input_dim = X_train.shape[-1]
-    # assert False, 'lol train'
+    # input_dim = X_train.shape[0]
+    assert False, ('ll', X_train.shape, y_train.shape, input_dim)
     with tf.device("/gpu:0"):
         sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
         x_input = tf.placeholder(dtype=tf.float32, shape=[batch_size, input_dim, input_dim, 1],
@@ -61,8 +63,10 @@ def train(wd, z_dim=None, model_name=None):
         decoder_input = tf.placeholder(dtype=tf.float32, shape=[1, z_dim],
                                        name='Decoder_input')
 
-        encoder_output = encoder(x_input, reuse=False, is_train=True)
-        encoder_output_test = encoder(x_input, reuse=True, is_train=False)
+        encoder_output = encoder(x_input, z_dim=z_dim, reuse=False, is_train=True)
+        #требует z_dim
+        encoder_output_test = encoder(x_input, z_dim=z_dim, reuse=True, is_train=False)
+        # assert False, (encoder_output_test.shape, encoder_output.shape)
         d_fake, d_fake_logits = discriminator(encoder_output, reuse=False)
         d_real, d_real_logits = discriminator(real_distribution, reuse=True)
 
@@ -70,9 +74,10 @@ def train(wd, z_dim=None, model_name=None):
         d_real_test, d_real_logits_test = discriminator(real_distribution, reuse=True)
 
         decoder_output, std = decoder(encoder_output, reuse=False, is_train=True)
-        encoder_output_z = encoder(decoder_output, reuse=True, is_train=False)
+        # assert False, decoder_output.shape
+        encoder_output_z = encoder(decoder_output, z_dim=z_dim, reuse=True, is_train=False)
         decoder_output_test, std_ = decoder(encoder_output, reuse=True, is_train=False)
-        encoder_output_z_test = encoder(decoder_output_test, reuse=True, is_train=False)
+        encoder_output_z_test = encoder(decoder_output_test, z_dim=z_dim, reuse=True, is_train=False)
 
         #decoder_image = decoder(decoder_input, reuse=True, is_train=False)
 
@@ -128,7 +133,7 @@ def train(wd, z_dim=None, model_name=None):
         var_grad_autoencoder = tf.gradients(autoencoder_loss, all_variables)[0]
         var_grad_discriminator = tf.gradients(dc_loss, dc_var)[0]
         var_grad_generator = tf.gradients(generator_loss, en_var)[0]
-
+        assert False, 'kek1'
         # Optimizers
         with tf.device("/gpu:0"):
             autoencoderl2_optimizer = tf.train.AdamOptimizer(learning_rate=LR,
@@ -173,7 +178,7 @@ def train(wd, z_dim=None, model_name=None):
         log.write("z_dim: {}\n".format(z_dim))
         log.write("batch_size: {}\n".format(batch_size))
         log.write("\n")
-
+    assert False, 'kek2'
     for i in range(EPOCHS):
         b = 0
         for batch in tl.iterate.minibatches(inputs=X_train, targets=np.zeros(X_train.shape),
@@ -184,6 +189,7 @@ def train(wd, z_dim=None, model_name=None):
             batch_x, _ = batch
             batch_x = batch_x[:, :, :, np.newaxis]
             #lambda_x = np.max(lambda_grow_max / np.float(i), lambda_grow_max)
+            assert False, 'kek'
             sess.run(autoencoderl2_optimizer, feed_dict={x_input: batch_x, x_target: batch_x})
             if i < 20:
                 # sess.run(autoencoder_optimizer, feed_dict={x_input: batch_x, x_target: batch_x})
@@ -260,5 +266,6 @@ if __name__ == '__main__':
     parser.add_argument('--model_name', type=str, default='None', help='model to retrain on')
     parser.add_argument('--z_dim', type=str, default='None', help='model comment')
     parser.add_argument('--dataset_dir', type=str, default='/root/HCP/T2w_restore/', help='path to train dataset')
+    parser.add_argument('--results_path', type=str, default='/root/result/', help='path to result')
     args = parser.parse_args()
-    train(wd=args.dataset_dir, z_dim=args.z_dim, model_name=args.model_name)
+    train(wd=args.dataset_dir, z_dim=int(args.z_dim), model_name=args.model_name)

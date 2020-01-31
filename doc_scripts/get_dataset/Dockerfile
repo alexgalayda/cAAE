@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorflow:19.12-tf2-py3
+FROM nvcr.io/nvidia/tensorflow:19.10-py3
 
 WORKDIR /root
 COPY ./get_dataset/requirements.txt requirements.txt
