@@ -29,24 +29,24 @@ else:
 	people_list = people_list[:10]
 	##
 	for person in tqdm(people_list):
-	    s3_keys = bucket.objects.filter(Prefix=f'HCP_1200/{person}/MNINonLinear/T2w_restore')
-	    s3_keylist = [key.key for key in s3_keys]
-	    for path_idx, s3_path in enumerate(s3_keylist):
-	        rel_path = s3_path.replace(s3_prefix, '')
-	        rel_path = rel_path.lstrip('/')
-	        if args.struct:
-	            download_file = os.path.join(out_dir, rel_path)
-	            download_dir = os.path.dirname(download_file)
-	        else:
-	            download_file = os.path.join(out_dir, rel_path.split('/')[-1][:-7],
-	                                         '.'.join([rel_path.split('/')[-1].split('.')[0]
-	                            + '_'+ str(person)] + rel_path.split('/')[-1].split('.')[1:]))
-	            download_dir = os.path.dirname(download_file)
-	        os.makedirs(download_dir, exist_ok=True)
-	        try:
-	            if not os.path.exists(download_file):
-	                with open(download_file, 'wb') as f:
-	                    bucket.download_file(s3_path,download_file)
-	        except Exception as exc:
-	            print (f'There was a problem downloading {s3_path}.\n Check and try again.')
-	            print (exc)
+		s3_keys = bucket.objects.filter(Prefix=f'HCP_1200/{person}/MNINonLinear/T2w_restore')
+		s3_keylist = [key.key for key in s3_keys]
+		for path_idx, s3_path in enumerate(s3_keylist):
+			rel_path = s3_path.replace(s3_prefix, '')
+			rel_path = rel_path.lstrip('/')
+			if args.struct:
+				download_file = os.path.join(out_dir, rel_path)
+				download_dir = os.path.dirname(download_file)
+			else:
+				download_file = os.path.join(out_dir, rel_path.split('/')[-1][:-7],
+											 '.'.join([rel_path.split('/')[-1].split('.')[0]
+								+ '_'+ str(person)] + rel_path.split('/')[-1].split('.')[1:]))
+				download_dir = os.path.dirname(download_file)
+			os.makedirs(download_dir, exist_ok=True)
+			try:
+				if not os.path.exists(download_file):
+					with open(download_file, 'wb') as f:
+						bucket.download_file(s3_path,download_file)
+			except Exception as exc:
+				print (f'There was a problem downloading {s3_path}.\n Check and try again.')
+				print (exc)

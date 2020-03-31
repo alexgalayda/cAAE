@@ -1,3 +1,7 @@
+# Быстрый старт
+Просто запустите `run.sh` вместе с именем файла конфигурации из папки с конфигами (config/{file}.env)  
+Напримаер: ```$ run.sh test```
+
 # cAAE
 
 code for Unsupervised Detection of Lesions in Brain MRI using constrained adversarial auto-encoders, [https://arxiv.org/abs/1806.04972](https://arxiv.org/abs/1806.04972)
