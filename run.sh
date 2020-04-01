@@ -119,8 +119,7 @@ main () {
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]
         then
-            echo lol
-#            download
+            download
         fi
     fi
     train
