@@ -1,14 +1,12 @@
-FROM nvcr.io/nvidia/tensorflow:19.06-py3
-#FROM tensorflow/tensorflow:latest
+FROM nvcr.io/nvidia/pytorch:19.12-py3
 
-
-WORKDIR /root
-ADD ./train/model /root/model/
+#WORKDIR /root
+#ADD ./train/model /root/model/
 #ADD model /root/
 
-COPY ./train/requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-RUN rm requirements.txt
+#COPY ./train/requirements.txt requirements.txt
+#RUN pip install --no-cache-dir -r requirements.txt
+#RUN rm requirements.txt
 
 
 #RUN echo TEST:${HCP}

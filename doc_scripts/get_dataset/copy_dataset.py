@@ -26,7 +26,7 @@ except Exception as e:
 	print(e)
 else:
 	people_list = [int(o.get('Prefix').split('/')[-2]) for o in result.get('CommonPrefixes')]
-	people_list = people_list[:10]
+	# people_list = people_list[:10]
 	##
 	for person in tqdm(people_list):
 		s3_keys = bucket.objects.filter(Prefix=f'HCP_1200/{person}/MNINonLinear/T2w_restore')
@@ -48,5 +48,5 @@ else:
 					with open(download_file, 'wb') as f:
 						bucket.download_file(s3_path,download_file)
 			except Exception as exc:
-				print (f'There was a problem downloading {s3_path}.\n Check and try again.')
-				print (exc)
+				print(f'There was a problem downloading {s3_path}.\n Check and try again.')
+				print(exc)
