@@ -4,6 +4,7 @@ import uuid
 import torch
 
 from torch.utils.data import Dataset
+import nibabel as nib
 
 class NibDataset(Dataset):
     def __init__(self, config, transform=None):

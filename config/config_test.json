@@ -2,8 +2,19 @@
     "path": "/root/HCP",
     "local": "T2w_restore",
     "slice": "",
+    "cuda": true,
+    "transforms": {
+        "resize": false,
+        "img_size": 256,
+        "to_tensor": true
+    },
     "train": {
-        "to_tensor": true,
-        "batch_size": 32
+        "batch_size": 32,
+        "latent_dim": 100,
+        "n_epochs": 200,
+        "lr": 0.0002,
+        "b1": 0.5,
+        "b2": 0.999,
+        "sample_interval" : 400
     }
 }

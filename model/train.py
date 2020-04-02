@@ -12,7 +12,7 @@ from tools.dataset import NibDataset
 def generator(config, shuffle=True):
     dataset = NibDataset(
         config=config, transform=transforms.Compose(
-            ([transforms.ToTensor()] if config.train.to_tensor else [])
+            ([transforms.ToTensor()] if config.transforms.to_tensor else [])
         )
     )
     dataloader = DataLoader(dataset, batch_size=config.train.batch_size,
@@ -32,5 +32,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config = read_conf(f'./config/{args.config_name}.json')
     train(config)
-
-

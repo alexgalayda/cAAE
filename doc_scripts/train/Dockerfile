@@ -1,7 +1,8 @@
 FROM nvcr.io/nvidia/pytorch:19.12-py3
 
 ARG TRAIN
-
+ARG CONFIG_NAME
+ENV CONFIG_NAME=$CONFIG_NAME
 WORKDIR /root
 
 #jupyter notebook
@@ -12,22 +13,8 @@ COPY $TRAIN/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
 
-
-
-
-#ADD ./train/model /root/model/
-#ADD model /root/model
-
-
-#RUN echo TEST:${HCP}
-#ENV {}
-#RUN mkdir HCP
-#cp -r lol/* shara/ && cd shara
-#python3 main.py --model_name "cAAE" --z_dim "128"
-
-#CMD python3 train.py
-
+ADD model /root/model
+ADD config /root/config
 
 WORKDIR /root
-#CMD jupyter notebook
-CMD python3 ./model/train.py -c $TRAIN
+CMD python3 ./model/train.py -c $CONFIG_NAME
