@@ -4,7 +4,7 @@ port(){
     #1 -- server port, 2 -- container port
     if [ -z "$2" ]
     then
-        local container_port=8000
+        local container_port=8888
     else
         local container_port=$2
     fi
@@ -89,6 +89,7 @@ train () {
     -f ${TRAIN}/Dockerfile
     -t ${NAME}_train_image
     --build-arg TRAIN=${TRAIN}
+    --build-arg CONFIG_NAME=${CONFIG_NAME}
     ."
     echo $docker_build
     $docker_build

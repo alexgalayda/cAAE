@@ -4,4 +4,5 @@
 # u can use: git update-index --assume-unchanged credentials
 credentials
 .idea
-model/funcs/__pycache__/
+*__pycache__*
+*.ipynb_checkpoints*

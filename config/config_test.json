@@ -1,0 +1,9 @@
+{
+    "path": "/root/HCP",
+    "local": "T2w_restore",
+    "slice": "",
+    "train": {
+        "to_tensor": true,
+        "batch_size": 32
+    }
+}

@@ -2,6 +2,8 @@
 Просто запустите `run.sh` вместе с именем файла конфигурации из папки с конфигами (config/{file}.env)  
 Напримаер: ```$ run.sh test```
 
+```ssh -N -L localhost:6969:127.0.0.1:6969 -i ~/work/ANGan/id_rsa_10 gayda@10.55.229.114```
+
 # cAAE
 
 code for Unsupervised Detection of Lesions in Brain MRI using constrained adversarial auto-encoders, [https://arxiv.org/abs/1806.04972](https://arxiv.org/abs/1806.04972)
