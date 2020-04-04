@@ -13,6 +13,7 @@ COPY $TRAIN/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
 
+WORKDIR /root
 ADD model /root/model
 ADD config /root/config
 

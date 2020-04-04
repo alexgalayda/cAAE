@@ -3,6 +3,7 @@ import argparse
 
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
+import ants
 
 from tools.config import Config, read_conf
 from tools.dataset import NibDataset
@@ -10,11 +11,19 @@ from tools.dataset import NibDataset
 
 
 def generator(config, shuffle=True):
-    dataset = NibDataset(
-        config=config, transform=transforms.Compose(
-            ([transforms.ToTensor()] if config.transforms.to_tensor else [])
-        )
-    )
+    trf = []
+    if config.transforms.norm:
+        trf.append(ants.iMath_normalize)
+    if config.transforms.resize:
+        def resize(obj, img_size=config.transforms.img_size):
+            return obj.resample_image((img_size, obj.shape[1], img_size), 1, 0)
+        trf.append(resize)
+    trf.append(lambda x: x.numpy())
+    if config.transforms.to_tensor:
+        trf.append(transforms.ToTensor())
+
+    dataset = NibDataset(config=config, transform=transforms.Compose(trf))
+
     dataloader = DataLoader(dataset, batch_size=config.train.batch_size,
                             shuffle=shuffle, num_workers=4, drop_last=True)
     return dataloader

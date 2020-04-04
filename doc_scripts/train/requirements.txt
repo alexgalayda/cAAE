@@ -1,4 +1,4 @@
 scipy==1.2.1
 pillow==4.3.0
-nibabel==3.0.2
+antspyx==0.2.4
 tqdm

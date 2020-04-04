@@ -2,9 +2,11 @@ import os
 import uuid
 
 import torch
-
 from torch.utils.data import Dataset
-import nibabel as nib
+import ants
+
+# import nibabel as nib
+# from PIL import Image
 
 class NibDataset(Dataset):
     def __init__(self, config, transform=None):
@@ -56,13 +58,15 @@ class Person:
         self.num = int(self.name.split('_')[-1])
 
     def __call__(self, transform=None):
-        img_nib = nib.load(self.path)
-        img = img_nib.get_data()
-        return transform(img) if transform else img
+        img = ants.image_read(self.path)
+        return transform(img) if transform else img.numpy()
 
     def __str__(self):
         return f"{self.uuid}: {self.path}"
 
     def __repr__(self):
         return f"{self.uuid[:-6]}: {self.name}"
+
+    def plot(self):
+        ants.plot(ants.image_read(self.path))
 
