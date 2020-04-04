@@ -5,9 +5,6 @@ import torch
 from torch.utils.data import Dataset
 import ants
 
-# import nibabel as nib
-# from PIL import Image
-
 class NibDataset(Dataset):
     def __init__(self, config, transform=None):
         self.config = config
@@ -48,6 +45,12 @@ class NibDataset(Dataset):
             return self.person_list[idx](self.transform)
         else:
             raise TypeError(f'Неверный тип. Хотел: int или str, а получил {idx.__type__}')
+
+    def get_img_shape(self):
+        if len(self.person_list) == 0:
+            return 0
+        else:
+            return list(self[0].shape)
 
 
 class Person:

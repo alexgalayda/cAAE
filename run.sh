@@ -102,7 +102,7 @@ train () {
     --shm-size=1g
     -it
     $(mount_dir $HCP $HCP_CONT true)
-    $(mount_dir $RESULT $RESULT_CONT)
+    $(mount_dir $RESULT $RESULT_CONT false)
     $(port $PORT)
     ${SHARA}
     --rm

@@ -24,13 +24,14 @@ def generator(config, shuffle=True):
 
     dataset = NibDataset(config=config, transform=transforms.Compose(trf))
 
-    dataloader = DataLoader(dataset, batch_size=config.train.batch_size,
-                            shuffle=shuffle, num_workers=4, drop_last=True)
-    return dataloader
+    dataloader = DataLoader(dataset, batch_size=config.train.batch_size, shuffle=shuffle)
+    # dataloader = DataLoader(dataset, batch_size=config.train.batch_size,
+    #                         shuffle=shuffle, num_workers=4, drop_last=True)
+    return dataloader, dataset.get_img_shape()
 
 
 def train(config):
-    dataset = generator(config)
+    dataset, img_shape = generator(config)
     # model = AAE(config)
     # model.train(dataset)
 
