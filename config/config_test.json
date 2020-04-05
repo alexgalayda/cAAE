@@ -11,7 +11,7 @@
         "to_tensor": true
     },
     "train": {
-        "batch_size": 4,
+        "batch_size": 2,
         "latent_dim": 128,
         "n_epochs": 200,
         "lr": 0.0002,

@@ -1,39 +1,67 @@
-# Быстрый старт
-Просто запустите `run.sh` вместе с именем файла конфигурации из папки с конфигами (config/{file}.env)  
-Напримаер: ```$ run.sh test```
+#Repeat of the cAAE-experiment
+This is a repetition of the experiment from this [article](https://arxiv.org/pdf/1806.04972.pdf) 
+entitled "Unsupervised Detection of Lesions in Brain MRI using constrained adversarial auto-encoders". 
+The creators posted their code on [this github repo](https://github.com/aubreychen9012/cAAE).
+Since the code provided by the researchers raises questions, I want to re-arrange the experiment.
 
-```ssh -N -L localhost:6969:127.0.0.1:6969 -i ~/work/ANGan/id_rsa_10 gayda@10.55.229.114```
+###Project Status:
+The original project has a number of problems:
+* `wd = "./Data/CamCAN_unbiased/CamCAN/T2w"`: CamCAN - это закрытый датасет
+* model.py - не рабочий код
 
-# cAAE
+I have already done:
+* [tensorflow](https://www.tensorflow.org/) :arrow_forward: [pytorch](https://pytorch.org/)
+* [nibabel](https://nipy.org/nibabel/) :arrow_forward: [antspy](https://github.com/ANTsX/ANTsPy)
+* automatic download of [HCP](http://www.humanconnectomeproject.org/data/)
+* [tensorboard](https://www.tensorflow.org/tensorboard)
+* docker container
+* [AAE](https://github.com/eriklindernoren/PyTorch-GAN)
 
-code for Unsupervised Detection of Lesions in Brain MRI using constrained adversarial auto-encoders, [https://arxiv.org/abs/1806.04972](https://arxiv.org/abs/1806.04972)
+I have to do:
+* автоматическое скачивание [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html) (I was not given access)
+* cAAE
+* saving weights
+* unit test
+* CI
+* Test jupyter notebook
 
-AAE model is implemented based on [this github repo](https://github.com/Naresh1318/Adversarial_Autoencoder)
+I'll do it if time is left:
+* Two-dimensional convolution is used instead of three-dimensional
+* Add Documentation Site on Jekyll
 
-Required: python>=3.6, tensorlayer, tensorflow>=1.0, numpy
 
-train model:  python main.py --model_name "cAAE" --z_dim "128"
+### Quick start
 
-# Using:
-First, you need to access an open dataset (I took part of the code from [here](https://github.com/jokedurnez/HCP_download)):
-1. You'll need to create HCP credentials. You'll need to accept the terms of data usage as well. You can do so by following [this tutorial](https://wiki.humanconnectome.org/display/PublicData/How+To+Connect+to+Connectome+Data+via+AWS).
+Just run `run.sh` along with the name of the configuration file from the config folder (config/{file}.env)
+For example: `$ run.sh example`
+
+If you are not running a jupyter notebook server, then you need to ssh port:  
+    ```
+    ssh -N -L localhost:6969:localhost:6969 -i ~/work/ANGan/id_rsa_10 galayda@10.55.229.114
+    ```
+
+In order to watch training statistics you need a tensorboard:  
+    ```
+    tensorboard --logdir ./log --port 6006
+    ```
+
+
+
+### Using:
+#### To start training
+1. You need to access an open dataset (I took part of the code from [here](https://github.com/jokedurnez/HCP_download)). You'll need to create HCP credentials. You'll need to accept the terms of data usage as well. You can do so by following [this tutorial](https://wiki.humanconnectome.org/display/PublicData/How+To+Connect+to+Connectome+Data+via+AWS).
 Stop at this moment and use the received keys
 ![keys](https://wiki.humanconnectome.org/download/attachments/67666030/image2015-1-7%2014%3A41%3A22.png?version=1&modificationDate=1420664134386&api=v2)
 
 2. Use the data instead of XXX in the file `./doc_scripts/get_dataset/credentials`:
-```
-[hcp]
-AWS_ACCESS_KEY_ID=XXX
-AWS_SECRET_ACCES_KEY=XXX
-```
+    ```
+    [hcp]
+    AWS_ACCESS_KEY_ID=XXX
+    AWS_SECRET_ACCES_KEY=XXX
+    ```
 3. Now let's get started
-```
-./run.sh -m /path/to/HCP
-```
-You can use  
-* -m set the directory where the dataset will be downloaded (by default /mnt/storage/datasets/HCP/)
-* -g attribute to set the number of the video card (ALL for all video cards)
-* -s to specify the folder for sharing the folder (there will be a folder in docker /root/shara)
-```
-./run.sh -g 0 -s /path/to/shara -m /path/to/HCP
-```
+    ```
+    $ run.sh train
+    ```
+#### To start testing:
+:poop: I do not have access to BRATS, because the dataset is not quite open :poop:

@@ -20,6 +20,10 @@ class NibDataset(Dataset):
                             config.slice[0] <= person.num < config.slice[1])):
                         self.person_dict[person.uuid] = person
                         self.person_list.append(person)
+                if len(self.person_list) >= self.config.train.max_batch:
+                    break
+            if len(self.person_list) >= self.config.train.max_batch:
+                break
 
     def __str__(self):
         ans = ''

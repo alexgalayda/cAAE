@@ -7,7 +7,7 @@ import ants
 
 from tools.config import Config, read_conf
 from tools.dataset import NibDataset
-# from models import AAE
+from models import AAE
 
 
 def generator(config, shuffle=True):
@@ -32,8 +32,9 @@ def generator(config, shuffle=True):
 
 def train(config):
     dataset, img_shape = generator(config)
-    # model = AAE(config)
-    # model.train(dataset)
+    config.transforms += {'img_shape': img_shape}
+    model = AAE(config)
+    model.train(dataset)
 
 
 if __name__ == '__main__':
