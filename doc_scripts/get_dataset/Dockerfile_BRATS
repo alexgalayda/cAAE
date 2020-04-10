@@ -1,0 +1,16 @@
+FROM nvcr.io/nvidia/pytorch:19.12-py3
+
+ARG GET_DATASET
+ARG BRATS_CONT
+ARG BRATS_TAR
+ENV BRATS_CONT=$BRATS_CONT
+ENV BRATS_TAR=$BRATS_TAR
+
+WORKDIR /root
+COPY $GET_DATASET/requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN rm requirements.txt
+
+COPY $GET_DATASET/copy_dataset_BRATS.py copy_dataset_BRATS.py
+
+CMD python3 copy_dataset_BRATS.py -p $BRATS_CONT -t $BRATS_TAR

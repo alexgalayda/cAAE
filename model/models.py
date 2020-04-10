@@ -13,13 +13,12 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 #TODO: объеденить классы сетей
-class AAE:
-    def __init__(self, config):
-        self.config = config.train
+class AAE():
+    def __init__(self, config, train_flg=True):
+        self.config = config.train if train_flg else config.test
         self.output = config.result
-        # TODO: а если я не буду ресайзить?
         self.img_shape = config.transforms.img_shape
-        self.img_shape[2] *= config.train.batch_size
+        self.img_shape[0] *= self.config.batch_size
         self.cuda = config.cuda and torch.cuda.is_available()
         print(f'\033[3{2 if self.cuda else 1}m[Cuda: {self.cuda}]\033[0m')
         self.Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
@@ -41,6 +40,24 @@ class AAE:
             self.adversarial_loss.cuda()
             self.pixelwise_loss.cuda()
 
+    def __repr__(self):
+        return f'cuda: {self.cuda}\n' + \
+               f'config: {self.config}'
+
+    def __str__(self):
+        return f'{self.__repr__()}\n' + \
+               f'{self.encoder}\n{self.decoder}\n{self.discriminator}'
+
+    #     #check
+    #     def sample_image(self, n_row, batches_done):
+    # #         assert False, 'check this'
+    #         """Saves a grid of generated digits"""
+    #         # Sample noise
+    #         z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.latent_dim))))
+    #         gen_imgs = self.decoder(z)
+    #         save_image(gen_imgs.data, os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
+
+    def train(self, dataloader):
         # Optimizers
         self.optimizer_G = torch.optim.Adam(
             itertools.chain(
@@ -58,31 +75,15 @@ class AAE:
         # tensorboard callback
         self.writer = SummaryWriter(os.path.join(self.output, 'log'))
 
-    def __repr__(self):
-        return f'cuda: {self.cuda}\n' + \
-               f'config: {self.config}'
+        self.running_loss_g = 0
+        self.running_loss_d = 0
 
-    def __str__(self):
-        return f'{self.__repr__()}\n' + \
-               f'{self.encoder}\n{self.decoder}\n{self.discriminator}'
-
-#     #check
-#     def sample_image(self, n_row, batches_done):
-# #         assert False, 'check this'
-#         """Saves a grid of generated digits"""
-#         # Sample noise
-#         z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.latent_dim))))
-#         gen_imgs = self.decoder(z)
-#         save_image(gen_imgs.data, os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
-
-    def train(self, dataloader):
         for epoch in tqdm(range(self.config.n_epochs), total=self.config.n_epochs, desc='Epoch', leave=True):
-            self.running_loss_g = 0
-            self.running_loss_d = 0
             for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
                 if i >= self.config.max_batch:
                     break
-                imgs = batch.permute(0, 3, 1, 2).reshape(-1, self.img_shape[0], self.img_shape[1])
+                imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
+                # imgs = batch.permute(0, 3, 1, 2).reshape(-1, self.img_shape[0], self.img_shape[1])
                 # Adversarial ground truths
                 valid = Variable(self.Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
                 fake = Variable(self.Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
@@ -127,6 +128,46 @@ class AAE:
             self.tensorboard_callback(epoch, len(dataloader))
         self.writer.close()
 
+    # def test(self, dataloader):
+    #     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
+    #         if i >= self.config.max_batch:
+    #             break
+    #         imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
+    #
+    #         real_imgs = Variable(imgs.type(self.Tensor))
+    #
+    #         encoded_imgs = self.encoder(real_imgs)
+    #         decoded_imgs = self.decoder(encoded_imgs)
+    #
+    #         g_loss =  self.pixelwise_loss(decoded_imgs, real_imgs)
+
+    def test_one(self, dataset, trf=None, idx=None):
+        test_person = dataset.person_list[idx] if idx else dataset.get_random()
+        test_brain = test_person.get_ants(np_flg=False)
+        test_tumor = test_person.get_tumor(np_flg=False)
+
+        real_img = Variable(test_brain(self.transform).type(self.Tensor))
+        decoded_img = self.decoder(self.encoder(real_img))
+        decoded_img_np = decoded_img.cpu().detach().permute(1, 2, 0).numpy()
+
+        scale_test_brain = trf(test_brain) if trf else test_brain
+        scale_test_tumor = trf(test_tumor) if trf else test_tumor
+        # scale_test_brain = ants.iMath_normalize(test_brain).resample_image(decoded_img_np.shape, 1, 0)
+        # scale_test_tumor = ants.iMath_normalize(test_tumor).resample_image(decoded_img_np.shape, 1, 0)
+
+        # g_loss = self.pixelwise_loss(decoded_imgs, real_imgs)
+        return abs(scale_test_brain - decoded_img_np), scale_test_tumor
+
+    def save(self, save_path):
+        torch.save(self.encoder.state_dict(), os.path.join(save_path, 'encoder'))
+        torch.save(self.decoder.state_dict(), os.path.join(save_path, 'decoder'))
+        torch.save(self.discriminator.state_dict(), os.path.join(save_path, 'discriminator'))
+
+    def load(self, load_path):
+        self.encoder.load_state_dict(torch.load(os.path.join(load_path, 'encoder')))
+        self.decoder.load_state_dict(torch.load(os.path.join(load_path, 'decoder')))
+        self.discriminator.load_state_dict(torch.load(os.path.join(load_path, 'discriminator')))
+
     def tensorboard_callback(self, i, dlen):
         self.writer.add_scalar('Loss/d_loss', self.running_loss_d / dlen, i)
         self.writer.add_scalar('Loss/g_loss', self.running_loss_g / dlen, i)
@@ -136,8 +177,7 @@ class Encoder(nn.Module):
     def __init__(self, config, img_shape):
         super(Encoder, self).__init__()
         self.config = config
-        self.img_shape = img_shape[:2]
-
+        self.img_shape = img_shape[1:]
         self.model = nn.Sequential(
             nn.Linear(int(np.prod(self.img_shape)), 512),
             nn.LeakyReLU(0.2, inplace=True),
@@ -168,7 +208,7 @@ class Decoder(nn.Module):
     def __init__(self, config, img_shape):
         super(Decoder, self).__init__()
         self.config = config
-        self.img_shape = img_shape[:2]
+        self.img_shape = img_shape[1:]
 
         self.model = nn.Sequential(
             nn.Linear(self.config.latent_dim, 512),
@@ -190,7 +230,7 @@ class Discriminator(nn.Module):
     def __init__(self, config, img_shape):
         super(Discriminator, self).__init__()
         self.config = config
-        self.img_shape = img_shape[:2]
+        self.img_shape = img_shape[1:]
 
         self.model = nn.Sequential(
             nn.Linear(self.config.latent_dim, 512),

@@ -64,4 +64,6 @@ Stop at this moment and use the received keys
     $ run.sh train
     ```
 #### To start testing:
-:poop: I do not have access to BRATS, because the dataset is not quite open :poop:
+We will test on the [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html) dataset. 
+To access the dataset, follow [the instructions](https://www.med.upenn.edu/sbia/brats2018/registration.html) on the official website.
+At the end you should have a `BRATS2015_Training.zip`.

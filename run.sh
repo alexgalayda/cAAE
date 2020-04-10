@@ -48,43 +48,75 @@ fi
 
 if $TEST_FLG;
 then
-    TEST=" bash"
+    TESTING=" bash"
     SHARA=$(mount_dir $SHARA $SHARA_CONT false)
 else
-    TEST=" "
+    TESTING=" "
     SHARA=" "
 fi
 
-download () {
+download_HCP () {
     echo Building Docker container...
     docker_build="docker build
-    -f ${GET_DATASET}/Dockerfile
-    -t ${NAME}_download_image
+    -f ${GET_DATASET}/Dockerfile_HCP
+    -t ${NAME}_download_hcp_image
     --build-arg GET_DATASET=${GET_DATASET}
+    --build-arg HCP_CONT=${HCP_CONT}
     ."
     echo $docker_build
     $docker_build
 
-    mkdir $HCP
     echo running download...
     docker_run="docker run
-    --name ${NAME}_download_cont
+    --name ${NAME}_download_hcp_cont
     --gpus $GPU
     --shm-size=1g
     -it
     $(mount_dir $HCP $HCP_CONT false)
     ${SHARA}
     --rm
-    ${NAME}_image
-    ${TEST}
+    ${NAME}_download_hcp_image
+    ${TESTING}
+    "
+    echo $docker_run
+    $docker_run
+}
+
+download_BRATS () {
+    echo Building Docker container...
+    docker_build="docker build
+    -f ${GET_DATASET}/Dockerfile_BRATS
+    -t ${NAME}_download_brats_image
+    --build-arg GET_DATASET=${GET_DATASET}
+    --build-arg BRATS_CONT=${BRATS_CONT}
+    --build-arg BRATS_TAR=${BRATS_TAR}
+    ."
+    echo $docker_build
+    $docker_build
+
+    echo running download...
+    docker_run="docker run
+    --name ${NAME}_download_brats_cont
+    --gpus $GPU
+    --shm-size=1g
+    -it
+    $(mount_dir $BRATS $BRATS_CONT false)
+    ${SHARA}
+    --rm
+    ${NAME}_download_brats_image
+    ${TESTING}
     "
     echo $docker_run
     $docker_run
 }
 
 train () {
+    # прокинуть веса и прочую херь
     echo Building Docker container...
-    echo $SHARA
+    if [ -n "$SHARA" ]
+    then
+        echo "Shared directory = $SHARA"
+    fi
     docker_build="docker build
     -f ${TRAIN}/Dockerfile
     -t ${NAME}_train_image
@@ -102,28 +134,92 @@ train () {
     --shm-size=1g
     -it
     $(mount_dir $HCP $HCP_CONT true)
+    $(mount_dir $WEIGHTS $WEIGHTS_CONT false)
     $(mount_dir $RESULT $RESULT_CONT false)
     $(port $PORT)
     ${SHARA}
     --rm
     ${NAME}_train_image
-    ${TEST}
+    ${TESTING}
+    "
+    echo $docker_run
+    $docker_run
+}
+
+test () {
+    echo Building Docker container...
+    if [ -n "$SHARA" ]
+    then
+        echo "Shared directory = $SHARA"
+    fi
+    docker_build="docker build
+    -f ${TEST}/Dockerfile
+    -t ${NAME}_test_image
+    --build-arg TEST=${TEST}
+    --build-arg CONFIG_NAME=${CONFIG_NAME}
+    ."
+    echo $docker_build
+    $docker_build
+
+    mkdir $RESULT
+    echo running Adversarial Autoencoder example...
+    docker_run="docker run
+    --name ${NAME}_test_cont
+    --gpus $GPU
+    --shm-size=1g
+    -it
+    $(mount_dir $HCP $HCP_CONT true)
+    $(mount_dir $BRATS $BRATS_CONT true)
+    $(mount_dir $WEIGHTS $WEIGHTS_CONT false)
+    $(mount_dir $RESULT $RESULT_CONT false)
+    $(port $PORT)
+    ${SHARA}
+    --rm
+    ${NAME}_test_image
+    ${TESTING}
     "
     echo $docker_run
     $docker_run
 }
 
 main () {
+    mkdir $HCP
     if [ "$(ls -A $HCP)" ]
-        then
+    then
         read -p "There is already some kind of dataset in the $HCP folder. Are you sure? " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]
         then
-            download
+            download_HCP
         fi
+    else
+        download_HCP
     fi
-    train
+    mkdir $WEIGHTS
+    if [ "$(ls -A $WEIGHTS)" ]
+        then
+        read -p "There is already some kind of weights in the $WEIGHTS folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            train
+        fi
+    else
+        train
+    fi
+    mkdir $BRATS
+    if [ "$(ls -A $BRATS)" ]
+        then
+        read -p "There is already some kind of dataset in the $BRATS folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            download_BRATS
+        fi
+    else
+        download_BRATS
+    fi
+    test
 }
 
 main
