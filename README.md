@@ -1,17 +1,17 @@
-#Repeat of the cAAE-experiment
+# Repeat of the cAAE-experiment
 This is a repetition of the experiment from this [article](https://arxiv.org/pdf/1806.04972.pdf) 
 entitled "Unsupervised Detection of Lesions in Brain MRI using constrained adversarial auto-encoders". 
 The creators posted their code on [this github repo](https://github.com/aubreychen9012/cAAE).
 Since the code provided by the researchers raises questions, I want to re-arrange the experiment.
 
-###Project Status:
+### Project Status:
 The original project has a number of problems:
 * `wd = "./Data/CamCAN_unbiased/CamCAN/T2w"`: CamCAN - это закрытый датасет
 * model.py - не рабочий код
 
 I have already done:
-* [tensorflow](https://www.tensorflow.org/) :arrow_forward: [pytorch](https://pytorch.org/)
-* [nibabel](https://nipy.org/nibabel/) :arrow_forward: [antspy](https://github.com/ANTsX/ANTsPy)
+* [tensorflow](https://www.tensorflow.org/) => [pytorch](https://pytorch.org/)
+* [nibabel](https://nipy.org/nibabel/) => [antspy](https://github.com/ANTsX/ANTsPy)
 * automatic download of [HCP](http://www.humanconnectomeproject.org/data/)
 * [tensorboard](https://www.tensorflow.org/tensorboard)
 * docker container
