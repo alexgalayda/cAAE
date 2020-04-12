@@ -20,7 +20,7 @@
         "lr": 0.0002,
         "b1": 0.5,
         "b2": 0.999,
-        "sample_interval" : 400,
+        "sample_interval": 400,
         "max_batch": 35
     },
     "test": {

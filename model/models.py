@@ -48,16 +48,12 @@ class AAE():
         return f'{self.__repr__()}\n' + \
                f'{self.encoder}\n{self.decoder}\n{self.discriminator}'
 
-    #     #check
-    #     def sample_image(self, n_row, batches_done):
-    # #         assert False, 'check this'
-    #         """Saves a grid of generated digits"""
-    #         # Sample noise
-    #         z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.latent_dim))))
-    #         gen_imgs = self.decoder(z)
-    #         save_image(gen_imgs.data, os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
+    def sample_image(self, n_row=5, batches_done='AAE_image'):
+        z = Variable(self.Tensor(np.random.normal(0, 1, (n_row**2, self.config.latent_dim))))
+        gen_imgs = self.decoder(z)
+        save_image(gen_imgs.unsqueeze(1), os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
 
-    def train(self, dataloader):
+    def train(self, dataset):
         # Optimizers
         self.optimizer_G = torch.optim.Adam(
             itertools.chain(
@@ -78,10 +74,10 @@ class AAE():
         self.running_loss_g = 0
         self.running_loss_d = 0
 
+        dataloader = dataset.dataloader()
         for epoch in tqdm(range(self.config.n_epochs), total=self.config.n_epochs, desc='Epoch', leave=True):
             for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
-                if i >= self.config.max_batch:
-                    break
+
                 imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
                 # imgs = batch.permute(0, 3, 1, 2).reshape(-1, self.img_shape[0], self.img_shape[1])
                 # Adversarial ground truths
@@ -128,18 +124,18 @@ class AAE():
             self.tensorboard_callback(epoch, len(dataloader))
         self.writer.close()
 
-    # def test(self, dataloader):
-    #     for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
-    #         if i >= self.config.max_batch:
-    #             break
-    #         imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
-    #
-    #         real_imgs = Variable(imgs.type(self.Tensor))
-    #
-    #         encoded_imgs = self.encoder(real_imgs)
-    #         decoded_imgs = self.decoder(encoded_imgs)
-    #
-    #         g_loss =  self.pixelwise_loss(decoded_imgs, real_imgs)
+    def test(self, dataloader):
+        for i, ants_img in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
+            brain_img = ants_img
+            tumor_img = ants_img
+            imgs = img.reshape(-1, self.img_shape[1], self.img_shape[2])
+
+            real_imgs = Variable(imgs.type(self.Tensor))
+
+            encoded_imgs = self.encoder(real_imgs)
+            decoded_imgs = self.decoder(encoded_imgs)
+
+            g_loss = self.pixelwise_loss(decoded_imgs, real_imgs)
 
     def test_one(self, dataset, trf=None, idx=None):
         test_person = dataset.person_list[idx] if idx else dataset.get_random()

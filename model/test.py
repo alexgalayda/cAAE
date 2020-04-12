@@ -1,31 +1,25 @@
 import argparse
 
-import numpy as np
-from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-import ants
-
 from tools.config import Config, read_conf
-from tools.dataset import MRTDataset
 from models import AAE
+from generator import generator
 
-from train import generator
 
-
+#TODO: добавить что-то после теста
 def test(config, load_path):
-    dataset, img_shape = generator(config, health_flg=False)
-    config.transforms += {'img_shape': img_shape.copy()}
-    model = AAE(config)
+    dataset = generator(config, train_flg=False)
+    config.transforms += {'img_shape': dataset.get_img_shape()}
+    model = AAE(config, train_flg=False)
     model.load(load_path)
     model.test(dataset)
 
 
-def test_one(config, load_path):
-    dataset, img_shape = generator(config, health_flg=False, dat_flg=True)
-    config.transforms += {'img_shape': img_shape.copy()}
+def test_show(config, load_path):
+    dataset, img_shape = generator(config, health_flg=False)
+    config.transforms += {'img_shape': dataset.get_img_shape()}
     model = AAE(config, train_flg=False)
     model.load(load_path)
-    decod_tumor, test_tumor = model.test_one(dataset)
+    decod_tumor, test_tumor = model.test_show(dataset)
     return decod_tumor, test_tumor
 
 

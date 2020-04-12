@@ -13,14 +13,13 @@ I have already done:
 * [tensorflow](https://www.tensorflow.org/) => [pytorch](https://pytorch.org/)
 * [nibabel](https://nipy.org/nibabel/) => [antspy](https://github.com/ANTsX/ANTsPy)
 * automatic download of [HCP](http://www.humanconnectomeproject.org/data/)
+* automatic processing of [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html)
 * [tensorboard](https://www.tensorflow.org/tensorboard)
 * docker container
 * [AAE](https://github.com/eriklindernoren/PyTorch-GAN)
 
 I have to do:
-* автоматическое скачивание [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html) (I was not given access)
 * cAAE
-* saving weights
 * unit test
 * CI
 * Test jupyter notebook
