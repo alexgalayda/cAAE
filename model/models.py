@@ -29,9 +29,9 @@ class AAE():
         self.pixelwise_loss = torch.nn.L1Loss()
 
         # Initialize generator and discriminator
-        self.encoder = Encoder(self.config, self.img_shape)
+        self.encoder = Encoder(self.config)
         self.decoder = Decoder(self.config, self.img_shape)
-        self.discriminator = Discriminator(self.config, self.img_shape)
+        self.discriminator = Discriminator(self.config)
 
         if self.cuda:
             self.encoder.cuda()
@@ -49,7 +49,7 @@ class AAE():
                f'{self.encoder}\n{self.decoder}\n{self.discriminator}'
 
     def sample_image(self, n_row=5, batches_done='AAE_image'):
-        z = Variable(self.Tensor(np.random.normal(0, 1, (n_row**2, self.config.latent_dim))))
+        z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.latent_dim))))
         gen_imgs = self.decoder(z)
         save_image(gen_imgs.unsqueeze(1), os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
 
@@ -76,8 +76,7 @@ class AAE():
 
         dataloader = dataset.dataloader()
         for epoch in tqdm(range(self.config.n_epochs), total=self.config.n_epochs, desc='Epoch', leave=True):
-            for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
-
+            for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
                 imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
                 # imgs = batch.permute(0, 3, 1, 2).reshape(-1, self.img_shape[0], self.img_shape[1])
                 # Adversarial ground truths
@@ -98,8 +97,8 @@ class AAE():
 
                 # Loss measures generator's ability to fool the discriminator
                 g_loss = \
-                    0.001 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
-                    0.999 * self.pixelwise_loss(decoded_imgs, real_imgs)
+                    0.01 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
+                    0.99 * self.pixelwise_loss(decoded_imgs, real_imgs)
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()
@@ -124,35 +123,59 @@ class AAE():
             self.tensorboard_callback(epoch, len(dataloader))
         self.writer.close()
 
-    def test(self, dataloader):
-        for i, ants_img in tqdm(enumerate(dataloader), total=len(dataloader), desc='Bath'):
-            brain_img = ants_img
-            tumor_img = ants_img
-            imgs = img.reshape(-1, self.img_shape[1], self.img_shape[2])
+    def test(self, dataset, acc=0.3, pre=0.8, idx=None):
+        ans = [0, 0, None, None]
+        for idx in tqdm(range(3)):
+            #         for idx in tqdm(range(len(dataset)), desc='Bath'):
+            test_person = dataset.get_person(idx)
+            test_tumor_tensor = test_person.get_tumor(transform=dataset.transform).cpu()
+            test_brain = test_person.get_brain()
+            test_brain_tensor = Variable(test_person(dataset.transform).type(self.Tensor))
+            decoded_img = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
+            mask = ants.get_mask(test_brain)
+            mask = ants.iMath(mask, 'ME', 2)
+            decoded_img *= dataset.transform(mask)
+            decoded_img = torch.clamp(decoded_img, 0, 1)
+            restore_tumor = abs(decoded_img - test_brain_tensor.data.cpu())
+            restore_tumor[restore_tumor < acc] = 0
 
-            real_imgs = Variable(imgs.type(self.Tensor))
+            acc_loss = self.pixelwise_loss.cpu()(decoded_img, test_brain_tensor.data.cpu()).item()
+            ttn = (test_tumor_tensor != 0).sum().item()
+            rtn = (restore_tumor != 0).sum().item()
+            tn = (restore_tumor * test_tumor_tensor != 0).sum().item()
+            pre_loss = 2 * tn / (ttn + rtn) if ttn + rtn else 1
 
-            encoded_imgs = self.encoder(real_imgs)
-            decoded_imgs = self.decoder(encoded_imgs)
+            if pre_loss > ans[0]:
+                ans[0] = pre_loss
+                ans[1] = acc_loss
+                ans[2] = restore_tumor
+                ans[3] = test_tumor_tensor
+        return ans
 
-            g_loss = self.pixelwise_loss(decoded_imgs, real_imgs)
+    def test_show(self, dataset, acc=0.3, pre=0.8, idx=None):
+        test_person = dataset.get_person(idx) if idx else dataset.get_random()
+        test_tumor_tensor = test_person.get_tumor(transform=dataset.transform).cpu()
+        test_brain = test_person.get_brain()
+        test_brain_tensor = Variable(test_person(dataset.transform).type(self.Tensor))
+        #         test_brain = test_person.get_brain(np_flg=False)
+        decoded_img = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
+        mask = ants.get_mask(test_brain)
+        mask = ants.iMath(mask, 'ME', 2)  # just to speed things up
+        # cropped = ants.crop_image(another_brain, mask, 1)
+        decoded_img *= dataset.transform(mask)
+        decoded_img = torch.clamp(decoded_img, 0, 1)
+        restore_tumor = abs(decoded_img - test_brain_tensor.data.cpu())
+        restore_tumor[restore_tumor < acc] = 0
 
-    def test_one(self, dataset, trf=None, idx=None):
-        test_person = dataset.person_list[idx] if idx else dataset.get_random()
-        test_brain = test_person.get_ants(np_flg=False)
-        test_tumor = test_person.get_tumor(np_flg=False)
+        acc_loss = self.pixelwise_loss.cpu()(decoded_img, test_brain_tensor.data.cpu()).item()
+        ttn = (test_tumor_tensor != 0).sum().item()
+        rtn = (restore_tumor != 0).sum().item()
+        tn = (restore_tumor * test_tumor_tensor != 0).sum().item()
+        pre_loss = 2 * tn / (ttn + rtn) if ttn + rtn else 1
+        print(acc_loss, pre_loss)
+        return restore_tumor, test_tumor_tensor
 
-        real_img = Variable(test_brain(self.transform).type(self.Tensor))
-        decoded_img = self.decoder(self.encoder(real_img))
-        decoded_img_np = decoded_img.cpu().detach().permute(1, 2, 0).numpy()
-
-        scale_test_brain = trf(test_brain) if trf else test_brain
-        scale_test_tumor = trf(test_tumor) if trf else test_tumor
-        # scale_test_brain = ants.iMath_normalize(test_brain).resample_image(decoded_img_np.shape, 1, 0)
-        # scale_test_tumor = ants.iMath_normalize(test_tumor).resample_image(decoded_img_np.shape, 1, 0)
-
-        # g_loss = self.pixelwise_loss(decoded_imgs, real_imgs)
-        return abs(scale_test_brain - decoded_img_np), scale_test_tumor
+    #         decoded_img_np = decoded_img.cpu().detach().permute(1, 2, 0).numpy()
 
     def save(self, save_path):
         torch.save(self.encoder.state_dict(), os.path.join(save_path, 'encoder'))
@@ -170,24 +193,31 @@ class AAE():
 
 
 class Encoder(nn.Module):
-    def __init__(self, config, img_shape):
+    def __init__(self, config):
         super(Encoder, self).__init__()
         self.config = config
-        self.img_shape = img_shape[1:]
         self.model = nn.Sequential(
-            nn.Linear(int(np.prod(self.img_shape)), 512),
+            nn.Conv2d(1, 64, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(512, 512, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Flatten()
         )
-
         self.mu = nn.Linear(512, self.config.latent_dim)
         self.logvar = nn.Linear(512, self.config.latent_dim)
 
     def forward(self, img):
-        img_flat = img.view(img.shape[0], -1)
-        x = self.model(img_flat)
+        x = self.model(img.unsqueeze(1))
         mu = self.mu(x)
         logvar = self.logvar(x)
         z = self.reparameterization(mu, logvar)
@@ -206,35 +236,47 @@ class Decoder(nn.Module):
         self.config = config
         self.img_shape = img_shape[1:]
 
-        self.model = nn.Sequential(
+        self.model_prep = nn.Sequential(
             nn.Linear(self.config.latent_dim, 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 512),
-            nn.BatchNorm1d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, int(np.prod(self.img_shape))),
-            nn.Tanh(),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+        self.model = nn.Sequential(
+            nn.ConvTranspose2d(512, 512, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(64, 1, 4, 2, 1, bias=False),
+            nn.Tanh()
         )
 
     def forward(self, z):
-        img_flat = self.model(z)
-        img = img_flat.view(img_flat.shape[0], *self.img_shape)
+        img_conv = self.model_prep(z).unsqueeze(2).unsqueeze(3)
+        img = self.model(img_conv).view(-1, *self.img_shape)
         return img
 
 
 class Discriminator(nn.Module):
-    def __init__(self, config, img_shape):
+    def __init__(self, config):
         super(Discriminator, self).__init__()
         self.config = config
-        self.img_shape = img_shape[1:]
 
         self.model = nn.Sequential(
             nn.Linear(self.config.latent_dim, 512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 1),
-            nn.Sigmoid(),
+            nn.Linear(256, 128),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(128, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, z):

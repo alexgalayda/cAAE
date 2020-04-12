@@ -7,7 +7,7 @@ from generator import generator
 
 #TODO: сохранить сгенегированные изображение в results
 def train(config, save_path):
-    dataset = generator(config, health_flg=True)
+    dataset = generator(config, train_flg=True)
     config.transforms += {'img_shape': dataset.get_img_shape()}
     model = AAE(config)
     model.train(dataset)

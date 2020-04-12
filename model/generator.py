@@ -4,6 +4,7 @@ import ants
 
 from tools.dataset import MRTDataset
 
+
 def generator(config, train_flg):
     trf = []
     if config.transforms.norm:
@@ -16,6 +17,4 @@ def generator(config, train_flg):
     if config.transforms.to_tensor:
         trf.append(transforms.ToTensor())
 
-    dataset = MRTDataset(config=config, train_flg=train_flg, transform=transforms.Compose(trf))
-
-    return dataset
+    return MRTDataset(config=config, health_flg=train_flg, transform=transforms.Compose(trf))
