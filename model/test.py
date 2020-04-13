@@ -1,26 +1,26 @@
 import argparse
 
 from tools.config import Config, read_conf
-from models import AAE
+from AAE import AAE
 from generator import generator
 
 
-#TODO: добавить что-то после теста
-def test(config, load_path):
+def test(config, load_path, acc=0.3):
     dataset = generator(config, train_flg=False)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    model = AAE(config, train_flg=False)
+    net = {"AAE": AAE}
+    model = net['net'](config, train_flg=False)
     model.load(load_path)
-    model.test(dataset)
+    model.test(dataset, acc)
 
 
-def test_show(config, load_path):
-    dataset, img_shape = generator(config, health_flg=False)
+def test_show(config, load_path, acc=0.3):
+    dataset = generator(config, train_flg=False)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    model = AAE(config, train_flg=False)
+    net = {"AAE": AAE}
+    model = net['net'](config, train_flg=False)
     model.load(load_path)
-    decod_tumor, test_tumor = model.test_show(dataset)
-    return decod_tumor, test_tumor
+    model.test_show(dataset, acc)
 
 
 if __name__ == '__main__':

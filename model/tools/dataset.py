@@ -112,5 +112,10 @@ class Person:
         img = ants.image_read(self.path)
         return img.numpy() if np_flg else img
 
+    def get_mask(self):
+        mask = ants.get_mask(self.get_brain())
+        mask = ants.iMath(mask, 'ME', 2)
+        return mask
+
     def __call__(self, transform=None):
         return transform(self.get_brain()) if transform else self.get_brain(np_flg=True).astype(np.float32)

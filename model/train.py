@@ -1,7 +1,7 @@
 import argparse
 
 from tools.config import Config, read_conf
-from models import AAE
+from AAE import AAE
 from generator import generator
 
 
@@ -9,7 +9,8 @@ from generator import generator
 def train(config, save_path):
     dataset = generator(config, train_flg=True)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    model = AAE(config)
+    net = {"AAE": AAE}
+    model = net['net'](config)
     model.train(dataset)
     model.save(save_path)
     model.sample_image()

@@ -44,8 +44,6 @@ In order to watch training statistics you need a tensorboard:
     tensorboard --logdir ./log --port 6006
     ```
 
-
-
 ### Using:
 #### To start training
 1. You need to access an open dataset (I took part of the code from [here](https://github.com/jokedurnez/HCP_download)). You'll need to create HCP credentials. You'll need to accept the terms of data usage as well. You can do so by following [this tutorial](https://wiki.humanconnectome.org/display/PublicData/How+To+Connect+to+Connectome+Data+via+AWS).
@@ -65,4 +63,5 @@ Stop at this moment and use the received keys
 #### To start testing:
 We will test on the [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html) dataset. 
 To access the dataset, follow [the instructions](https://www.med.upenn.edu/sbia/brats2018/registration.html) on the official website.
-At the end you should have a `BRATS2015_Training.zip`.
+At the end you should have a `BRATS{№}_Training.zip`. Place the archive in the folder where you want to save the dataset.
+
