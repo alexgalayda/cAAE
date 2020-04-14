@@ -1,16 +1,14 @@
 import argparse
 
-from tools.config import Config, read_conf
-from AAE import AAE
-from generator import generator
+from model.tools.config import Config, read_conf
+from model.AAE import AAE
+from model.generator import generator, net
 
 
-#TODO: сохранить сгенегированные изображение в results
 def train(config, save_path):
     dataset = generator(config, train_flg=True)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    net = {"AAE": AAE}
-    model = net['net'](config)
+    model = net[config.net](config)
     model.train(dataset)
     model.save(save_path)
     model.sample_image()

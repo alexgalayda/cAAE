@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 import os
 import json
 import copy
-from tools.tools import get_attr
+from model.tools.tools import get_attr
 
 
 def read_conf(path):

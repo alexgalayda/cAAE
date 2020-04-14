@@ -1,15 +1,14 @@
 import argparse
 
-from tools.config import Config, read_conf
-from AAE import AAE
-from generator import generator
+from model.tools.config import Config, read_conf
+from model.AAE import AAE
+from model.generator import generator, net
 
 
 def test(config, load_path, acc=0.3):
     dataset = generator(config, train_flg=False)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    net = {"AAE": AAE}
-    model = net['net'](config, train_flg=False)
+    model = net[config.net](config, train_flg=False)
     model.load(load_path)
     model.test(dataset, acc)
 
@@ -17,8 +16,7 @@ def test(config, load_path, acc=0.3):
 def test_show(config, load_path, acc=0.3):
     dataset = generator(config, train_flg=False)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    net = {"AAE": AAE}
-    model = net['net'](config, train_flg=False)
+    model = net[config.net](config, train_flg=False)
     model.load(load_path)
     model.test_show(dataset, acc)
 

@@ -168,9 +168,8 @@ test () {
     --gpus $GPU
     --shm-size=1g
     -it
-    $(mount_dir $HCP $HCP_CONT true)
     $(mount_dir $BRATS $BRATS_CONT true)
-    $(mount_dir $WEIGHTS $WEIGHTS_CONT false)
+    $(mount_dir $WEIGHTS $WEIGHTS_CONT true)
     $(mount_dir $RESULT $RESULT_CONT false)
     $(port $PORT)
     ${SHARA}
@@ -222,4 +221,68 @@ main () {
     test
 }
 
-main
+jupyter () {
+    mkdir $HCP
+    if [ "$(ls -A $HCP)" ]
+    then
+        read -p "There is already some kind of dataset in the $HCP folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            download_HCP
+        fi
+    else
+        download_HCP
+    fi
+    mkdir $BRATS
+    if [ "$(ls -A $BRATS)" ]
+        then
+        read -p "There is already some kind of dataset in the $BRATS folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            download_BRATS
+        fi
+    else
+        download_BRATS
+    fi
+    echo Building Docker container...
+    if [ -n "$SHARA" ]
+    then
+        echo "Shared directory = $SHARA"
+    fi
+    docker_build="docker build
+    -f ${TEST}/Dockerfile_jup
+    -t ${NAME}_jupyter_image
+    --build-arg TEST=${TEST}
+    --build-arg CONFIG_NAME=${CONFIG_NAME}
+    ."
+    echo $docker_build
+    $docker_build
+
+    mkdir $RESULT
+    echo running Adversarial Autoencoder example...
+    docker_run="docker run
+    --name ${NAME}_jupyter_cont
+    --gpus $GPU
+    --shm-size=1g
+    -it
+    $(mount_dir $HCP $HCP_CONT true)
+    $(mount_dir $BRATS $BRATS_CONT true)
+    $(mount_dir $WEIGHTS $WEIGHTS_CONT false)
+    $(mount_dir $RESULT $RESULT_CONT false)
+    $(port $PORT)
+    ${SHARA}
+    --rm
+    ${NAME}_jupyter_image
+    "
+    echo $docker_run
+    $docker_run
+}
+
+if [ "$1"=="jupyter" ]
+then
+    jupyter
+else
+    main
+fi

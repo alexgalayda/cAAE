@@ -1,27 +1,20 @@
 import os
-
 from tqdm import tqdm
 import numpy as np
 import itertools
+import matplotlib.pyplot as plt
 
 from torchvision.utils import save_image
 from torch.autograd import Variable
-
 import torch.nn as nn
 import torch
-
 from torch.utils.tensorboard import SummaryWriter
 
-class cAAE():
+from module.basic import BasicModel
+
+class cAAE(BasicModel):
     def __init__(self, config, train_flg=True):
-        self.config = config.train if train_flg else config.test
-        self.output = config.result
-        self.img_shape = config.transforms.img_shape
-        self.img_shape[0] *= self.config.batch_size
-        self.cuda = config.cuda and torch.cuda.is_available()
-        print(f'\033[3{2 if self.cuda else 1}m[Cuda: {self.cuda}]\033[0m')
-        self.Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
-        self.config += {'Tensor': self.Tensor}
+        super(AAE, self).__init__(config, train_flg)
 
         # Use binary cross-entropy loss
         self.adversarial_loss = torch.nn.BCELoss()
@@ -38,19 +31,6 @@ class cAAE():
             self.discriminator.cuda()
             self.adversarial_loss.cuda()
             self.pixelwise_loss.cuda()
-
-    def __repr__(self):
-        return f'cuda: {self.cuda}\n' + \
-               f'config: {self.config}'
-
-    def __str__(self):
-        return f'{self.__repr__()}\n' + \
-               f'{self.encoder}\n{self.decoder}\n{self.discriminator}'
-
-    def sample_image(self, n_row=5, batches_done='AAE_image'):
-        z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.latent_dim))))
-        gen_imgs = self.decoder(z)
-        save_image(gen_imgs.unsqueeze(1), os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
 
     def train(self, dataset):
         # Optimizers
@@ -77,7 +57,6 @@ class cAAE():
         for epoch in tqdm(range(self.config.n_epochs), total=self.config.n_epochs, desc='Epoch', leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
                 imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
-                # imgs = batch.permute(0, 3, 1, 2).reshape(-1, self.img_shape[0], self.img_shape[1])
                 # Adversarial ground truths
                 valid = Variable(self.Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
                 fake = Variable(self.Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
@@ -122,73 +101,36 @@ class cAAE():
             self.tensorboard_callback(epoch, len(dataloader))
         self.writer.close()
 
-    def test(self, dataset, acc=0.3, pre=0.8, idx=None):
-        ans = [0, 0, None, None]
-        for idx in tqdm(range(3)):
-            #         for idx in tqdm(range(len(dataset)), desc='Bath'):
-            test_person = dataset.get_person(idx)
-            test_tumor_tensor = test_person.get_tumor(transform=dataset.transform).cpu()
-            test_brain = test_person.get_brain()
-            test_brain_tensor = Variable(test_person(dataset.transform).type(self.Tensor))
-            decoded_img = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
-            mask = ants.get_mask(test_brain)
-            mask = ants.iMath(mask, 'ME', 2)
-            decoded_img *= dataset.transform(mask)
-            decoded_img = torch.clamp(decoded_img, 0, 1)
-            restore_tumor = abs(decoded_img - test_brain_tensor.data.cpu())
-            restore_tumor[restore_tumor < acc] = 0
-
-            acc_loss = self.pixelwise_loss.cpu()(decoded_img, test_brain_tensor.data.cpu()).item()
-            ttn = (test_tumor_tensor != 0).sum().item()
-            rtn = (restore_tumor != 0).sum().item()
-            tn = (restore_tumor * test_tumor_tensor != 0).sum().item()
-            pre_loss = 2 * tn / (ttn + rtn) if ttn + rtn else 1
-
-            if pre_loss > ans[0]:
-                ans[0] = pre_loss
-                ans[1] = acc_loss
-                ans[2] = restore_tumor
-                ans[3] = test_tumor_tensor
-        return ans
-
-    def test_show(self, dataset, acc=0.3, pre=0.8, idx=None):
-        test_person = dataset.get_person(idx) if idx else dataset.get_random()
-        test_tumor_tensor = test_person.get_tumor(transform=dataset.transform).cpu()
-        test_brain = test_person.get_brain()
-        test_brain_tensor = Variable(test_person(dataset.transform).type(self.Tensor))
-        #         test_brain = test_person.get_brain(np_flg=False)
-        decoded_img = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
-        mask = ants.get_mask(test_brain)
-        mask = ants.iMath(mask, 'ME', 2)  # just to speed things up
-        # cropped = ants.crop_image(another_brain, mask, 1)
-        decoded_img *= dataset.transform(mask)
-        decoded_img = torch.clamp(decoded_img, 0, 1)
-        restore_tumor = abs(decoded_img - test_brain_tensor.data.cpu())
-        restore_tumor[restore_tumor < acc] = 0
-
-        acc_loss = self.pixelwise_loss.cpu()(decoded_img, test_brain_tensor.data.cpu()).item()
-        ttn = (test_tumor_tensor != 0).sum().item()
+    def calc_metric(self, brain_tensor, recovered_brain, restore_tumor, tumor_tensor):
+        acc_loss = self.pixelwise_loss.cpu()(recovered_brain, brain_tensor).item()
+        ttn = (tumor_tensor != 0).sum().item()
         rtn = (restore_tumor != 0).sum().item()
-        tn = (restore_tumor * test_tumor_tensor != 0).sum().item()
+        tn = (restore_tumor * tumor_tensor != 0).sum().item()
         pre_loss = 2 * tn / (ttn + rtn) if ttn + rtn else 1
-        print(acc_loss, pre_loss)
-        return restore_tumor, test_tumor_tensor
+        return acc_loss, pre_loss
 
-    #         decoded_img_np = decoded_img.cpu().detach().permute(1, 2, 0).numpy()
+    def test(self, dataset, acc=0.3):
+        acc_loss, pre_loss = 0, 0
+        for idx in tqdm(range(len(dataset)), desc='Testing'):
+            test_person = dataset.get_person(idx)
+            recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
+            test_tumor_tensor = test_person.get_tumor(dataset.transform)
+            test_brain_tensor = test_person(dataset.transform)
+            acc, pre = self.calc_metric(test_brain_tensor, recovered_brain, restore_tumor, test_tumor_tensor)
+            acc_loss += acc
+            pre_loss += pre
+        print(f'pixelwise loss on brain: {acc_loss / len(dataset)}')
+        print(f'tumor coverage: {pre_loss / len(dataset)}')
 
-    def save(self, save_path):
-        torch.save(self.encoder.state_dict(), os.path.join(save_path, 'encoder'))
-        torch.save(self.decoder.state_dict(), os.path.join(save_path, 'decoder'))
-        torch.save(self.discriminator.state_dict(), os.path.join(save_path, 'discriminator'))
-
-    def load(self, load_path):
-        self.encoder.load_state_dict(torch.load(os.path.join(load_path, 'encoder')))
-        self.decoder.load_state_dict(torch.load(os.path.join(load_path, 'decoder')))
-        self.discriminator.load_state_dict(torch.load(os.path.join(load_path, 'discriminator')))
-
-    def tensorboard_callback(self, i, dlen):
-        self.writer.add_scalar('Loss/d_loss', self.running_loss_d / dlen, i)
-        self.writer.add_scalar('Loss/g_loss', self.running_loss_g / dlen, i)
+    def test_show(self, dataset, acc=0.3, idx=None, show_flg=False):
+        test_person = dataset.get_person(idx) if idx else dataset.get_random()
+        recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
+        fig = self.get_graph(test_person, dataset.transform, recovered_brain, restore_tumor)
+        if show_flg:
+            try:
+                fig.show()
+            except Exception as e:
+                print(f'Cann\'t show result\n{e}')
 
 
 class Encoder(nn.Module):
