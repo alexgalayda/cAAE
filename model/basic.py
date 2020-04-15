@@ -14,15 +14,15 @@ from torch.utils.tensorboard import SummaryWriter
 # +
 class BasicModel:
     def __init__(self, config, train_flg=True):
-        self.name = config.net
-        self.config = config.train if train_flg else config.test
+        self.name = config.struct.name
+        self.config = config
         self.output = config.result
         self.img_shape = config.transforms.img_shape
-        self.img_shape[0] *= self.config.batch_size
+        self.img_shape[0] *= self.config.train.batch_size if train_flg else self.config.test.batch_size
         self.cuda = config.cuda and torch.cuda.is_available()
         print(f'\033[3{2 if self.cuda else 1}m[Cuda: {self.cuda}]\033[0m')
         self.Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
-        self.config += {'Tensor': self.Tensor}
+        self.config += {'Tensor': self.Tensor, 'train_flg': train_flg}
 
 #         # Use binary cross-entropy loss
 #         self.adversarial_loss = torch.nn.BCELoss()
@@ -48,8 +48,8 @@ class BasicModel:
         return f'{self.__repr__()}\n' + \
                f'{self.encoder}\n{self.decoder}\n{self.discriminator}'
 
-    def sample_image(self, n_row=5, batches_done=f'{self.name}_image'):
-        z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.latent_dim))))
+    def sample_image(self, n_row=5, batches_done=f'image'):
+        z = Variable(self.Tensor(np.random.normal(0, 1, (n_row ** 2, self.config.struct.latent_dim))))
         gen_imgs = self.decoder(z)
         save_image(gen_imgs.unsqueeze(1), os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
 

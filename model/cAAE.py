@@ -7,22 +7,27 @@ import matplotlib.pyplot as plt
 from torchvision.utils import save_image
 from torch.autograd import Variable
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from module.basic import BasicModel
+from model.basic import BasicModel
 
+# +
 class cAAE(BasicModel):
     def __init__(self, config, train_flg=True):
-        super(AAE, self).__init__(config, train_flg)
+        super(cAAE, self).__init__(config, train_flg)
 
-        # Use binary cross-entropy loss
+#         Use binary cross-entropy loss
         self.adversarial_loss = torch.nn.BCELoss()
         self.pixelwise_loss = torch.nn.L1Loss()
+#         self.auto_encoder_loss = lambda x, y: torch.nn.MSELoss()(x, y) + float(config.struct.lambda)*torch.nn.MSELoss()(x, y)
+        
+        
 
         # Initialize generator and discriminator
         self.encoder = Encoder(self.config)
-        self.decoder = Decoder(self.config, self.img_shape)
+        self.decoder = Decoder(self.config)
         self.discriminator = Discriminator(self.config)
 
         if self.cuda:
@@ -31,7 +36,7 @@ class cAAE(BasicModel):
             self.discriminator.cuda()
             self.adversarial_loss.cuda()
             self.pixelwise_loss.cuda()
-
+    
     def train(self, dataset):
         # Optimizers
         self.optimizer_G = torch.optim.Adam(
@@ -39,13 +44,13 @@ class cAAE(BasicModel):
                 self.encoder.parameters(),
                 self.decoder.parameters()
             ),
-            lr=self.config.lr,
-            betas=(self.config.b1, self.config.b2)
+            lr=self.config.train.lr,
+            betas=(self.config.train.b1, self.config.train.b2)
         )
         self.optimizer_D = torch.optim.Adam(
             self.discriminator.parameters(),
-            lr=self.config.lr,
-            betas=(self.config.b1, self.config.b2))
+            lr=self.config.train.lr,
+            betas=(self.config.train.b1, self.config.train.b2))
 
         # tensorboard callback
         self.writer = SummaryWriter(os.path.join(self.output, 'log'))
@@ -54,7 +59,7 @@ class cAAE(BasicModel):
         self.running_loss_d = 0
 
         dataloader = dataset.dataloader()
-        for epoch in tqdm(range(self.config.n_epochs), total=self.config.n_epochs, desc='Epoch', leave=True):
+        for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch', leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
                 imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
                 # Adversarial ground truths
@@ -74,9 +79,16 @@ class cAAE(BasicModel):
                 decoded_imgs = self.decoder(encoded_imgs)
 
                 # Loss measures generator's ability to fool the discriminator
-                g_loss = \
-                    0.01 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
-                    0.99 * self.pixelwise_loss(decoded_imgs, real_imgs)
+                try:
+                    g_loss = \
+                        0.001 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
+                        0.999 * self.pixelwise_loss(decoded_imgs, real_imgs)
+                except Exception as e:
+                    ll = self.discriminator(encoded_imgs)
+                    print(ll.min(), ll.max(), valid.min(), valid.max())
+                    print(ll)
+                    print(valid)
+                    raise e
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()
@@ -88,7 +100,7 @@ class cAAE(BasicModel):
                 self.optimizer_D.zero_grad()
 
                 # Sample noise as discriminator ground truth
-                z = Variable(self.Tensor(np.random.normal(0, 1, (imgs.shape[0], self.config.latent_dim))))
+                z = Variable(self.Tensor(np.random.normal(0, 1, (imgs.shape[0], self.config.struct.latent_dim))))
 
                 # Measure discriminator's ability to classify real from generated samples
                 real_loss = self.adversarial_loss(self.discriminator(z), valid)
@@ -133,29 +145,26 @@ class cAAE(BasicModel):
                 print(f'Cann\'t show result\n{e}')
 
 
+# -
+
 class Encoder(nn.Module):
     def __init__(self, config):
         super(Encoder, self).__init__()
         self.config = config
         self.model = nn.Sequential(
-            nn.Conv2d(1, 64, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(512, 512, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            ResBlockDown(32, 64),
+            ResBlockDown(64, 128),
+            ResBlockDown(128, 256),
+            ResBlockDown(256, 512),
+            nn.AvgPool2d(2),
             nn.Flatten()
         )
-        self.mu = nn.Linear(512, self.config.latent_dim)
-        self.logvar = nn.Linear(512, self.config.latent_dim)
+
+        self.mu = nn.Linear(512, self.config.struct.latent_dim)
+        self.logvar = nn.Linear(512, self.config.struct.latent_dim)
 
     def forward(self, img):
         x = self.model(img.unsqueeze(1))
@@ -166,41 +175,34 @@ class Encoder(nn.Module):
 
     def reparameterization(self, mu, logvar):
         std = torch.exp(logvar / 2)
-        sampled_z = Variable(self.config.Tensor(np.random.normal(0, 1, (mu.size(0), self.config.latent_dim))))
+        sampled_z = Variable(self.config.Tensor(np.random.normal(0, 1, (mu.size(0), self.config.struct.latent_dim))))
         z = sampled_z * std + mu
         return z
 
 
 class Decoder(nn.Module):
-    def __init__(self, config, img_shape):
+    def __init__(self, config):
         super(Decoder, self).__init__()
         self.config = config
-        self.img_shape = img_shape[1:]
 
         self.model_prep = nn.Sequential(
-            nn.Linear(self.config.latent_dim, 512),
+            nn.Linear(self.config.struct.latent_dim, 512),
             nn.LeakyReLU(0.2, inplace=True)
         )
         self.model = nn.Sequential(
             nn.ConvTranspose2d(512, 512, 4, 1, 0, bias=False),
             nn.BatchNorm2d(512),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.2, inplace=True),
+            ResBlockUp(512, 256),
+            ResBlockUp(256, 128),
+            ResBlockUp(128, 64),
             nn.ConvTranspose2d(64, 1, 4, 2, 1, bias=False),
             nn.Tanh()
         )
-
+        
     def forward(self, z):
         img_conv = self.model_prep(z).unsqueeze(2).unsqueeze(3)
-        img = self.model(img_conv).view(-1, *self.img_shape)
+        img = self.model(img_conv).view(-1, *self.config.transforms.img_shape[1:])
         return img
 
 
@@ -210,7 +212,7 @@ class Discriminator(nn.Module):
         self.config = config
 
         self.model = nn.Sequential(
-            nn.Linear(self.config.latent_dim, 512),
+            nn.Linear(self.config.struct.latent_dim, 512),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2, inplace=True),
@@ -223,3 +225,159 @@ class Discriminator(nn.Module):
     def forward(self, z):
         validity = self.model(z)
         return validity
+
+
+class ResBlockDown(nn.Module): 
+    def __init__(self, channels_in, channels_out=None):
+        super(ResBlockDown, self).__init__()
+        kernel_size, stride, padding = 4, 2, 1
+        if channels_out is None:
+            channels_out = channels_in
+        if channels_out != channels_in:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+                nn.BatchNorm2d(channels_out))
+        else:
+            kernel_size, stride, padding = 3, 1, 1
+            self.downsample = None   
+            
+        self.module = nn.Sequential(
+            nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(channels_out),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(channels_out, channels_out, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(channels_out),
+        )
+
+        self.relu = nn.LeakyReLU(0.2, inplace=True)        
+
+    def forward(self, x):
+        residual = x
+        out = self.module(x)
+        if self.downsample:
+            residual = self.downsample(x)
+        return self.relu(out + residual)
+
+
+class ResBlockUp(nn.Module): 
+    def __init__(self, channels_in, channels_out=None):
+        super(ResBlockUp, self).__init__()
+        kernel_size, stride, padding = 4, 2, 1
+        if channels_out is None:
+            channels_out = channels_in
+        if channels_out != channels_in:
+            self.downsample = nn.Sequential(
+                nn.ConvTranspose2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+                nn.BatchNorm2d(channels_out))
+        else:
+            kernel_size, stride, padding = 3, 1, 1
+            self.downsample = None   
+            
+        self.module = nn.Sequential(
+            nn.ConvTranspose2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(channels_out),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.ConvTranspose2d(channels_out, channels_out, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(channels_out),
+        )
+
+        self.relu = nn.LeakyReLU(0.2, inplace=True)        
+
+    def forward(self, x):
+        residual = x
+        out = self.module(x)
+        if self.downsample:
+            residual = self.downsample(x)
+        return self.relu(out + residual)
+
+
+# +
+# class ResBlock(nn.Module): 
+#     def __init__(self, num_filters, channels_in=None, stride=1, res_option='A', use_dropout=False):
+#         super(ResBlock, self).__init__()
+        
+#         # uses 1x1 convolutions for downsampling
+#         if not channels_in or channels_in == num_filters:
+#             channels_in = num_filters
+#             self.projection = None
+#         else:
+#             if res_option == 'A':
+#                 self.projection = IdentityPadding(num_filters, channels_in, stride)
+#             elif res_option == 'B':
+#                 self.projection = ConvProjection(num_filters, channels_in, stride)
+#             elif res_option == 'C':
+#                 self.projection = AvgPoolPadding(num_filters, channels_in, stride)
+#         self.use_dropout = use_dropout
+
+#         self.conv1 = nn.Conv2d(channels_in, num_filters, kernel_size=3, stride=stride, padding=1)
+#         self.bn1 = nn.BatchNorm2d(num_filters)
+#         self.relu1 = nn.ReLU(inplace=True)
+#         self.conv2 = nn.Conv2d(num_filters, num_filters, kernel_size=3, stride=1, padding=1)
+#         self.bn2 = nn.BatchNorm2d(num_filters)
+#         if self.use_dropout:
+#             self.dropout = nn.Dropout(inplace=True)
+#         self.relu2 = nn.ReLU(inplace=True)
+
+#     def forward(self, x):
+#         residual = x
+#         out = self.conv1(x)
+#         out = self.bn1(out)
+#         out = self.relu1(out)
+#         out = self.conv2(out)
+#         out = self.bn2(out)
+#         if self.use_dropout:
+#             out = self.dropout(out)
+#         if self.projection:
+#             residual = self.projection(x)
+#         out += residual
+#         out = self.relu2(out)
+#         return out
+# -
+
+def make_layer(config, channels, channels_in, stride):
+    return nn.Sequential(
+        ResBlock(channels, channels_in, stride, res_option=config.struct.res_option, use_dropout=config.struct.use_dropout),
+        *[ResBlock(channels) for _ in range(config.struct.layer_count-1)])
+
+
+# +
+# various projection options to change number of filters in residual connection
+# option A from paper
+class IdentityPadding(nn.Module):
+    def __init__(self, num_filters, channels_in, stride):
+        super(IdentityPadding, self).__init__()
+        # with kernel_size=1, max pooling is equivalent to identity mapping with stride
+        self.identity = nn.MaxPool2d(1, stride=stride)
+        self.num_zeros = num_filters - channels_in
+    
+    def forward(self, x):
+        out = F.pad(x, (0, 0, 0, 0, 0, self.num_zeros))
+        out = self.identity(out)
+        return out
+
+# option B from paper
+class ConvProjection(nn.Module):
+
+    def __init__(self, num_filters, channels_in, stride):
+        super(ConvProjection, self).__init__()
+        self.conv = nn.Conv2d(channels_in, num_filters, kernel_size=1, stride=stride)
+    
+    def forward(self, x):
+        out = self.conv(x)
+        return out
+
+# experimental option C
+class AvgPoolPadding(nn.Module):
+
+    def __init__(self, num_filters, channels_in, stride):
+        super(AvgPoolPadding, self).__init__()
+        self.identity = nn.AvgPool2d(stride, stride=stride)
+        self.num_zeros = num_filters - channels_in
+    
+    def forward(self, x):
+        out = F.pad(x, (0, 0, 0, 0, 0, self.num_zeros))
+        out = self.identity(out)
+        return out
+# -
+
+

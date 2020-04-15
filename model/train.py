@@ -1,14 +1,13 @@
 import argparse
 
-from model.tools.config import Config, read_conf
-from model.AAE import AAE
+from model.tools.config import read_conf
 from model.generator import generator, net
 
 
 def train(config, save_path):
     dataset = generator(config, train_flg=True)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    model = net[config.net](config)
+    model = net[config.struct.name](config)
     model.train(dataset)
     model.save(save_path)
     model.sample_image()

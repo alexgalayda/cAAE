@@ -6,7 +6,7 @@ from model.tools.dataset import MRTDataset
 from model.AAE import AAE
 from model.cAAE import cAAE
 
-net = {"AAE": AAE, :"cAAE": cAAE}
+net = {"AAE": AAE, "cAAE": cAAE}
 
 
 def generator(config, train_flg):
