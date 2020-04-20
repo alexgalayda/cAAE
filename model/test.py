@@ -12,12 +12,12 @@ def test(config, load_path, acc=0.3):
     model.test(dataset, acc)
 
 
-def test_show(config, load_path, acc=0.3):
+def test_show(config, load_path, acc=0.3, idx=None):
     dataset = generator(config, train_flg=False)
     config.transforms += {'img_shape': dataset.get_img_shape()}
     model = net[config.struct.name](config, train_flg=False)
     model.load(load_path)
-    model.test_show(dataset, acc)
+    model.test_show(dataset, acc, idx=idx)
 
 
 if __name__ == '__main__':

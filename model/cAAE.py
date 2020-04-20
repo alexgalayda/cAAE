@@ -9,21 +9,19 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import torch.autograd as autograd
 from torch.utils.tensorboard import SummaryWriter
 
 from model.basic import BasicModel
 
-# +
 class cAAE(BasicModel):
     def __init__(self, config, train_flg=True):
         super(cAAE, self).__init__(config, train_flg)
 
-#         Use binary cross-entropy loss
+        # Use binary cross-entropy loss
         self.adversarial_loss = torch.nn.BCELoss()
         self.pixelwise_loss = torch.nn.L1Loss()
-#         self.auto_encoder_loss = lambda x, y: torch.nn.MSELoss()(x, y) + float(config.struct.lambda)*torch.nn.MSELoss()(x, y)
-        
-        
+        self.latent_loss = torch.nn.MSELoss()
 
         # Initialize generator and discriminator
         self.encoder = Encoder(self.config)
@@ -51,6 +49,7 @@ class cAAE(BasicModel):
             self.discriminator.parameters(),
             lr=self.config.train.lr,
             betas=(self.config.train.b1, self.config.train.b2))
+        
 
         # tensorboard callback
         self.writer = SummaryWriter(os.path.join(self.output, 'log'))
@@ -65,53 +64,61 @@ class cAAE(BasicModel):
                 # Adversarial ground truths
                 valid = Variable(self.Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
                 fake = Variable(self.Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
-
                 # Configure input
                 real_imgs = Variable(imgs.type(self.Tensor))
-
-                # -----------------
-                #  Train Generator
-                # -----------------
-
-                self.optimizer_G.zero_grad()
-
                 encoded_imgs = self.encoder(real_imgs)
                 decoded_imgs = self.decoder(encoded_imgs)
-
-                # Loss measures generator's ability to fool the discriminator
-                try:
-                    g_loss = \
-                        0.001 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
-                        0.999 * self.pixelwise_loss(decoded_imgs, real_imgs)
-                except Exception as e:
-                    ll = self.discriminator(encoded_imgs)
-                    print(ll.min(), ll.max(), valid.min(), valid.max())
-                    print(ll)
-                    print(valid)
-                    raise e
+        
+                self.optimizer_D.zero_grad()    
+                # Sample noise as discriminator ground truth
+                z = Variable(self.Tensor(np.random.normal(0, 1, (imgs.shape[0], self.config.struct.latent_dim))))            
+                # Gradient penalty
+                gradient_penalty = self.compute_gradient_penalty(encoded_imgs.data, z.data)
+                # Adversarial loss
+                d_loss = \
+                    torch.mean(self.discriminator(encoded_imgs.detach())) - \
+                    torch.mean(self.discriminator(z)) + \
+                    self.config.struct.lambda_gp * gradient_penalty
+                self.optimizer_D.step()
+                self.running_loss_d += d_loss.item()
+            
+                self.optimizer_G.zero_grad()
+                # if i % self.config.train.step_dis == 0:
+                g_loss = \
+                    self.pixelwise_loss(decoded_imgs, real_imgs) + \
+                    self.config.struct.lambda_gp * self.latent_loss(self.encoder(decoded_imgs), encoded_imgs)
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()
-
-                # ---------------------
-                #  Train Discriminator
-                # ---------------------
-
-                self.optimizer_D.zero_grad()
-
-                # Sample noise as discriminator ground truth
-                z = Variable(self.Tensor(np.random.normal(0, 1, (imgs.shape[0], self.config.struct.latent_dim))))
-
-                # Measure discriminator's ability to classify real from generated samples
-                real_loss = self.adversarial_loss(self.discriminator(z), valid)
-                fake_loss = self.adversarial_loss(self.discriminator(encoded_imgs.detach()), fake)
-                d_loss = 0.5 * (real_loss + fake_loss)
-
-                d_loss.backward()
-                self.optimizer_D.step()
-                self.running_loss_d += d_loss.item()
+            if epoch % 10 == 0:
+                save_path = '/root/weights'
+                torch.save(self.encoder.state_dict(), os.path.join(save_path, f'encoder_{self.name}_{epoch}'))
+                torch.save(self.decoder.state_dict(), os.path.join(save_path, f'decoder_{self.name}_{epoch}'))
+                torch.save(self.discriminator.state_dict(), os.path.join(save_path, f'discriminator_{self.name}_{epoch}'))
             self.tensorboard_callback(epoch, len(dataloader))
         self.writer.close()
+        
+    def compute_gradient_penalty(self, real_samples, fake_samples):
+        """Calculates the gradient penalty loss for WGAN GP"""
+        # Random weight term for interpolation between real and fake samples
+        alpha = self.Tensor(np.random.random((real_samples.size(0), 1)))
+        # Get random interpolation between real and fake samples
+        interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
+        d_interpolates = self.discriminator(interpolates)
+        fake = Variable(self.Tensor(real_samples.shape[0], 1).fill_(1.0), requires_grad=False)
+        # Get gradient w.r.t. interpolates
+        gradients = autograd.grad(
+            outputs=d_interpolates,
+            inputs=interpolates,
+            grad_outputs=fake,
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True,
+        )[0]
+        gradients = gradients.view(gradients.size(0), -1)
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradient_penalty
+
 
     def calc_metric(self, brain_tensor, recovered_brain, restore_tumor, tumor_tensor):
         acc_loss = self.pixelwise_loss.cpu()(recovered_brain, brain_tensor).item()
@@ -145,8 +152,6 @@ class cAAE(BasicModel):
                 print(f'Cann\'t show result\n{e}')
 
 
-# -
-
 class Encoder(nn.Module):
     def __init__(self, config):
         super(Encoder, self).__init__()
@@ -160,24 +165,13 @@ class Encoder(nn.Module):
             ResBlockDown(128, 256),
             ResBlockDown(256, 512),
             nn.AvgPool2d(2),
-            nn.Flatten()
+            nn.Flatten(),
+            nn.Linear(512, self.config.struct.latent_dim)
         )
-
-        self.mu = nn.Linear(512, self.config.struct.latent_dim)
-        self.logvar = nn.Linear(512, self.config.struct.latent_dim)
 
     def forward(self, img):
         x = self.model(img.unsqueeze(1))
-        mu = self.mu(x)
-        logvar = self.logvar(x)
-        z = self.reparameterization(mu, logvar)
-        return z
-
-    def reparameterization(self, mu, logvar):
-        std = torch.exp(logvar / 2)
-        sampled_z = Variable(self.config.Tensor(np.random.normal(0, 1, (mu.size(0), self.config.struct.latent_dim))))
-        z = sampled_z * std + mu
-        return z
+        return x
 
 
 class Decoder(nn.Module):
@@ -290,49 +284,6 @@ class ResBlockUp(nn.Module):
             residual = self.downsample(x)
         return self.relu(out + residual)
 
-
-# +
-# class ResBlock(nn.Module): 
-#     def __init__(self, num_filters, channels_in=None, stride=1, res_option='A', use_dropout=False):
-#         super(ResBlock, self).__init__()
-        
-#         # uses 1x1 convolutions for downsampling
-#         if not channels_in or channels_in == num_filters:
-#             channels_in = num_filters
-#             self.projection = None
-#         else:
-#             if res_option == 'A':
-#                 self.projection = IdentityPadding(num_filters, channels_in, stride)
-#             elif res_option == 'B':
-#                 self.projection = ConvProjection(num_filters, channels_in, stride)
-#             elif res_option == 'C':
-#                 self.projection = AvgPoolPadding(num_filters, channels_in, stride)
-#         self.use_dropout = use_dropout
-
-#         self.conv1 = nn.Conv2d(channels_in, num_filters, kernel_size=3, stride=stride, padding=1)
-#         self.bn1 = nn.BatchNorm2d(num_filters)
-#         self.relu1 = nn.ReLU(inplace=True)
-#         self.conv2 = nn.Conv2d(num_filters, num_filters, kernel_size=3, stride=1, padding=1)
-#         self.bn2 = nn.BatchNorm2d(num_filters)
-#         if self.use_dropout:
-#             self.dropout = nn.Dropout(inplace=True)
-#         self.relu2 = nn.ReLU(inplace=True)
-
-#     def forward(self, x):
-#         residual = x
-#         out = self.conv1(x)
-#         out = self.bn1(out)
-#         out = self.relu1(out)
-#         out = self.conv2(out)
-#         out = self.bn2(out)
-#         if self.use_dropout:
-#             out = self.dropout(out)
-#         if self.projection:
-#             residual = self.projection(x)
-#         out += residual
-#         out = self.relu2(out)
-#         return out
-# -
 
 def make_layer(config, channels, channels_in, stride):
     return nn.Sequential(

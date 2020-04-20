@@ -6,3 +6,5 @@ credentials
 .idea
 *__pycache__*
 *.ipynb_checkpoints*
+result/*
+weights/*

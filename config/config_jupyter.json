@@ -9,8 +9,8 @@
     "struct": {
         "name": "cAAE",
         "latent_dim": 128,
-        "lambda": 0.5
-     },
+        "lambda_gp": 0.5
+    },
     "transforms": {
         "norm": true,
         "resize": true,
@@ -20,11 +20,12 @@
     "train": {
         "batch_size": 2,
         "n_epochs": 200,
+        "step_dis": 5,
         "lr": 0.0002,
         "b1": 0.5,
         "b2": 0.999,
         "sample_interval": 400,
-        "max_batch": 35
+        "max_batch": 42
     },
     "test": {
         "type": "HGG",
