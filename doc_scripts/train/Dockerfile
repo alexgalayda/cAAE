@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
 
 WORKDIR /root
-ADD model /root/model
 ADD config /root/config
+ADD model /root/model
 
 WORKDIR /root
 CMD python3 ./model/train.py -c $CONFIG_NAME

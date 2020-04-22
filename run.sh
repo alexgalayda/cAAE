@@ -110,10 +110,10 @@ download_BRATS () {
     $docker_run
 }
 
-train () {
+training () {
     # прокинуть веса и прочую херь
     echo Building Docker container...
-    if [ -n "$SHARA" ]
+    if [ -n "$SHARA" ] && ! [ "$SHARA" == " " ]
     then
         echo "Shared directory = $SHARA"
     fi
@@ -146,7 +146,7 @@ train () {
     $docker_run
 }
 
-test () {
+testing () {
     echo Building Docker container...
     if [ -n "$SHARA" ]
     then
@@ -179,46 +179,6 @@ test () {
     "
     echo $docker_run
     $docker_run
-}
-
-main () {
-    mkdir $HCP
-    if [ "$(ls -A $HCP)" ]
-    then
-        read -p "There is already some kind of dataset in the $HCP folder. Are you sure? " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]
-        then
-            download_HCP
-        fi
-    else
-        download_HCP
-    fi
-    mkdir $WEIGHTS
-    if [ "$(ls -A $WEIGHTS)" ]
-        then
-        read -p "There is already some kind of weights in the $WEIGHTS folder. Are you sure? " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]
-        then
-            train
-        fi
-    else
-        train
-    fi
-    mkdir $BRATS
-    if [ "$(ls -A $BRATS)" ]
-        then
-        read -p "There is already some kind of dataset in the $BRATS folder. Are you sure? " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]
-        then
-            download_BRATS
-        fi
-    else
-        download_BRATS
-    fi
-    test
 }
 
 jupyter () {
@@ -280,9 +240,53 @@ jupyter () {
     $docker_run
 }
 
-if [ "$1"=="jupyter" ]
-then
-    jupyter
-else
-    main
-fi
+test() {
+    mkdir $HCP
+    if [ "$(ls -A $HCP)" ]
+    then
+        read -p "There is already some kind of dataset in the $HCP folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            download_HCP
+        fi
+    else
+        download_HCP
+    fi
+    mkdir $WEIGHTS
+    if [ "$(ls -A $WEIGHTS)" ]
+        then
+        read -p "There is already some kind of weights in the $WEIGHTS folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            training
+        fi
+    else
+        training
+    fi
+    mkdir $BRATS
+    if [ "$(ls -A $BRATS)" ]
+        then
+        read -p "There is already some kind of dataset in the $BRATS folder. Are you sure? " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]
+        then
+            download_BRATS
+        fi
+    else
+        download_BRATS
+    fi
+    testing
+}
+
+main () {
+    if [ "$1" == "jupyter" ]
+    then
+        jupyter
+    else
+        test
+    fi
+}
+
+main $1

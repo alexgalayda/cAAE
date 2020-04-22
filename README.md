@@ -6,8 +6,8 @@ Since the code provided by the researchers raises questions, I want to re-arrang
 
 ### Project Status:
 The original project has a number of problems:
-* `wd = "./Data/CamCAN_unbiased/CamCAN/T2w"`: CamCAN - это закрытый датасет
-* model.py - не рабочий код
+* `wd = "./Data/CamCAN_unbiased/CamCAN/T2w"`: CamCAN - this is a private dataset
+* model.py - non-working code
 
 I have already done:
 * [tensorflow](https://www.tensorflow.org/) => [pytorch](https://pytorch.org/)
@@ -16,13 +16,12 @@ I have already done:
 * automatic processing of [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html)
 * [tensorboard](https://www.tensorflow.org/tensorboard)
 * docker container
-* [AAE](https://github.com/eriklindernoren/PyTorch-GAN)
+* [AAE](https://github.com/eriklindernoren/PyTorch-GAN), cAAE
+* Test jupyter notebook
 
 I have to do:
-* cAAE
 * unit test
 * CI
-* Test jupyter notebook
 
 I'll do it if time is left:
 * Two-dimensional convolution is used instead of three-dimensional

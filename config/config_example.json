@@ -7,7 +7,7 @@
     "slice": "",
     "cuda": true,
     "struct": {
-        "name": "cAAE",
+        "name": "AAE",
         "latent_dim": 128,
         "lambda_gp": 0.5
     },
@@ -19,7 +19,7 @@
     },
     "train": {
         "batch_size": 2,
-        "n_epochs": 200,
+        "n_epochs": 2,
         "step_dis": 5,
         "lr": 0.0002,
         "b1": 0.5,

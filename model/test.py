@@ -1,5 +1,6 @@
-import argparse
-
+import argparse, sys
+sys.path.append('/root')
+# sys.path.append('/root/model')
 from model.tools.config import read_conf
 from model.generator import generator, net
 
