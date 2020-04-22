@@ -33,18 +33,21 @@ I'll do it if time is left:
 Just run `run.sh` along with the name of the configuration file from the config folder (config/{file}.env)
 For example: `$ run.sh example`
 
-If you are not running a jupyter notebook server, then you need to ssh port:  
-    ```
-    ssh -N -L localhost:6969:localhost:6969 -i ~/work/ANGan/id_rsa_10 galayda@10.55.229.114
-    ```
-
 In order to watch training statistics you need a tensorboard:  
     ```
     tensorboard --logdir ./log --port 6006
     ```
 
+### If you are comfortable with a jupiter notebook
+
+Run `$ run.sh jupyter notebook`
+If you dissolve on the server, you will have to forward the ssh port:  
+    ```
+    ssh -N -L localhost:6969:localhost:6969 -i ~/parh/to/id_rsa name@server
+    ```
+
 ### Using:
-#### To start training
+#### Get a training dataset:
 1. You need to access an open dataset (I took part of the code from [here](https://github.com/jokedurnez/HCP_download)). You'll need to create HCP credentials. You'll need to accept the terms of data usage as well. You can do so by following [this tutorial](https://wiki.humanconnectome.org/display/PublicData/How+To+Connect+to+Connectome+Data+via+AWS).
 Stop at this moment and use the received keys
 ![keys](https://wiki.humanconnectome.org/download/attachments/67666030/image2015-1-7%2014%3A41%3A22.png?version=1&modificationDate=1420664134386&api=v2)
@@ -55,11 +58,8 @@ Stop at this moment and use the received keys
     AWS_ACCESS_KEY_ID=XXX
     AWS_SECRET_ACCES_KEY=XXX
     ```
-3. Now let's get started
-    ```
-    $ run.sh train
-    ```
-#### To start testing:
+
+#### Get a testing dataset:
 We will test on the [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html) dataset. 
 To access the dataset, follow [the instructions](https://www.med.upenn.edu/sbia/brats2018/registration.html) on the official website.
 At the end you should have a `BRATS{№}_Training.zip`. Place the archive in the folder where you want to save the dataset.
