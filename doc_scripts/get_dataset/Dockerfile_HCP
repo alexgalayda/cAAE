@@ -10,7 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
 
 COPY $GET_DATASET/copy_dataset_HCP.py copy_dataset_HCP.py
-
 COPY $GET_DATASET/credentials .aws/credentials
 
 CMD python3 copy_dataset_HCP.py -p $HCP_CONT
