@@ -7,7 +7,7 @@
     "slice": "",
     "cuda": true,
     "struct": {
-        "name": "cAAE",
+        "name": "AAE",
         "latent_dim": 128,
         "lambda_gp": 0.5
     },
@@ -18,18 +18,20 @@
         "to_tensor": true
     },
     "train": {
-        "batch_size": 2,
-        "n_epochs": 200,
+        "batch_size": 16,
+        "n_epochs": 150,
         "step_dis": 5,
         "lr": 0.0002,
         "b1": 0.5,
         "b2": 0.999,
         "sample_interval": 400,
-        "max_batch": 42
+        "max_batch": 200
     },
     "test": {
+        "acc": 0.3,
+        "thickness": 2,
         "type": "HGG",
         "batch_size": 1,
-        "max_batch": 35
+        "max_batch": 999
     }
 }

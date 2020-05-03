@@ -2,26 +2,31 @@ import os
 from tqdm import tqdm
 import numpy as np
 import itertools
+import matplotlib.pyplot as plt
 
+from torchvision.utils import save_image
 from torch.autograd import Variable
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
+import torch.autograd as autograd
 from torch.utils.tensorboard import SummaryWriter
 
 from model.basic import BasicModel
 
 
-class AAE(BasicModel):
+class ResDCGAN(BasicModel):
     def __init__(self, config, train_flg=True):
-        super(AAE, self).__init__(config, train_flg)
+        super(ResDCGAN, self).__init__(config, train_flg)
 
         # Use binary cross-entropy loss
         self.adversarial_loss = torch.nn.BCELoss()
         self.pixelwise_loss = torch.nn.L1Loss()
+        self.latent_loss = torch.nn.MSELoss()
 
         # Initialize generator and discriminator
         self.encoder = Encoder(self.config)
-        self.decoder = Decoder(self.config, self.img_shape)
+        self.decoder = Decoder(self.config)
         self.discriminator = Discriminator(self.config)
 
         if self.cuda:
@@ -53,7 +58,8 @@ class AAE(BasicModel):
         self.running_loss_d = 0
 
         dataloader = dataset.dataloader()
-        for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch', leave=True):
+        for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch',
+                          leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
                 imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
                 # Adversarial ground truths
@@ -62,11 +68,6 @@ class AAE(BasicModel):
 
                 # Configure input
                 real_imgs = Variable(imgs.type(self.Tensor))
-
-                # -----------------
-                #  Train Generator
-                # -----------------
-
                 self.optimizer_G.zero_grad()
 
                 encoded_imgs = self.encoder(real_imgs)
@@ -79,10 +80,6 @@ class AAE(BasicModel):
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()
-
-                # ---------------------
-                #  Train Discriminator
-                # ---------------------
 
                 self.optimizer_D.zero_grad()
 
@@ -101,53 +98,38 @@ class AAE(BasicModel):
                 save_path = '/root/weights'
                 torch.save(self.encoder.state_dict(), os.path.join(save_path, f'encoder_{self.name}_{epoch}'))
                 torch.save(self.decoder.state_dict(), os.path.join(save_path, f'decoder_{self.name}_{epoch}'))
-                torch.save(self.discriminator.state_dict(), os.path.join(save_path, f'discriminator_{self.name}_{epoch}'))
+                torch.save(self.discriminator.state_dict(),
+                           os.path.join(save_path, f'discriminator_{self.name}_{epoch}'))
             self.tensorboard_callback(epoch, len(dataloader))
         self.writer.close()
+
 
 class Encoder(nn.Module):
     def __init__(self, config):
         super(Encoder, self).__init__()
         self.config = config
         self.model = nn.Sequential(
-            nn.Conv2d(1, 64, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(512, 512, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Flatten()
+            nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            ResBlockDown(32, 64),
+            ResBlockDown(64, 128),
+            ResBlockDown(128, 256),
+            ResBlockDown(256, 512),
+            nn.AvgPool2d(2),
+            nn.Flatten(),
+            nn.Linear(512, self.config.struct.latent_dim)
         )
-        self.mu = nn.Linear(512, self.config.struct.latent_dim)
-        self.logvar = nn.Linear(512, self.config.struct.latent_dim)
 
     def forward(self, img):
         x = self.model(img.unsqueeze(1))
-        mu = self.mu(x)
-        logvar = self.logvar(x)
-        z = self.reparameterization(mu, logvar)
-        return z
-
-    def reparameterization(self, mu, logvar):
-        std = torch.exp(logvar / 2)
-        sampled_z = Variable(self.config.Tensor(np.random.normal(0, 1, (mu.size(0), self.config.struct.latent_dim))))
-        z = sampled_z * std + mu
-        return z
+        return x
 
 
 class Decoder(nn.Module):
-    def __init__(self, config, img_shape):
+    def __init__(self, config):
         super(Decoder, self).__init__()
         self.config = config
-        self.img_shape = img_shape[1:]
 
         self.model_prep = nn.Sequential(
             nn.Linear(self.config.struct.latent_dim, 512),
@@ -157,22 +139,16 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(512, 512, 4, 1, 0, bias=False),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2, inplace=True),
+            ResBlockUp(512, 256),
+            ResBlockUp(256, 128),
+            ResBlockUp(128, 64),
             nn.ConvTranspose2d(64, 1, 4, 2, 1, bias=False),
             nn.Tanh()
         )
 
     def forward(self, z):
         img_conv = self.model_prep(z).unsqueeze(2).unsqueeze(3)
-        img = self.model(img_conv).view(-1, *self.img_shape)
+        img = self.model(img_conv).view(-1, *self.config.transforms.img_shape[1:])
         return img
 
 
@@ -195,3 +171,67 @@ class Discriminator(nn.Module):
     def forward(self, z):
         validity = self.model(z)
         return validity
+
+
+class ResBlockDown(nn.Module):
+    def __init__(self, channels_in, channels_out=None):
+        super(ResBlockDown, self).__init__()
+        kernel_size, stride, padding = 4, 2, 1
+        if channels_out is None:
+            channels_out = channels_in
+        if channels_out != channels_in:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+                nn.BatchNorm2d(channels_out))
+        else:
+            kernel_size, stride, padding = 3, 1, 1
+            self.downsample = None
+
+        self.module = nn.Sequential(
+            nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(channels_out),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(channels_out, channels_out, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(channels_out),
+        )
+
+        self.relu = nn.LeakyReLU(0.2, inplace=True)
+
+    def forward(self, x):
+        residual = x
+        out = self.module(x)
+        if self.downsample:
+            residual = self.downsample(x)
+        return self.relu(out + residual)
+
+
+class ResBlockUp(nn.Module):
+    def __init__(self, channels_in, channels_out=None):
+        super(ResBlockUp, self).__init__()
+        kernel_size, stride, padding = 4, 2, 1
+        if channels_out is None:
+            channels_out = channels_in
+        if channels_out != channels_in:
+            self.downsample = nn.Sequential(
+                nn.ConvTranspose2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+                nn.BatchNorm2d(channels_out))
+        else:
+            kernel_size, stride, padding = 3, 1, 1
+            self.downsample = None
+
+        self.module = nn.Sequential(
+            nn.ConvTranspose2d(channels_in, channels_out, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(channels_out),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.ConvTranspose2d(channels_out, channels_out, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(channels_out),
+        )
+
+        self.relu = nn.LeakyReLU(0.2, inplace=True)
+
+    def forward(self, x):
+        residual = x
+        out = self.module(x)
+        if self.downsample:
+            residual = self.downsample(x)
+        return self.relu(out + residual)

@@ -5,8 +5,10 @@ import ants
 from model.tools.dataset import MRTDataset
 from model.AAE import AAE
 from model.cAAE import cAAE
+from model.ResDCGAN import ResDCGAN
+from model.BiGAN import BiGAN
 
-net = {"AAE": AAE, "cAAE": cAAE}
+net = {"AAE": AAE, "cAAE": cAAE, "ResDCGAN": ResDCGAN, "BiGAN": BiGAN}
 
 
 def generator(config, train_flg):
