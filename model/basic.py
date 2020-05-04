@@ -33,7 +33,9 @@ class BasicModel:
         gen_imgs = self.decoder(z)
         save_image(gen_imgs.unsqueeze(1), os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
 
-    def recover(self, person, transform, acc=0.3):
+    def recover(self, person, transform, acc=None):
+        if acc is None:
+            acc = self.config.test.acc
         # get brain
         test_brain_tensor = Variable(person(transform).type(self.Tensor))
         recovered_brain = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
@@ -44,33 +46,53 @@ class BasicModel:
         # get tumor
         restore_tumor = abs(recovered_brain - test_brain_tensor.cpu())
         restore_tumor[restore_tumor < acc] = 0
-        return recovered_brain, restore_tumor
+        restore_tumor[restore_tumor >= acc] = 1
+        return recovered_brain, self.del_border(restore_tumor, self.config.test.thickness)
+    
+    def del_border(self, tumor, tk):
+        tumor_temp = tumor.clone()
+        if tk:
+            cent = tumor[:, tk:-tk, tk:-tk] > 0
+            left = tumor[:, :-2*tk, 2:-2] > 0
+            right = tumor[:, 2*tk:, 2:-2] > 0
+            top = tumor[:, 2:-2, 2*tk:] > 0
+            down = tumor[:, 2:-2, :-2*tk] > 0
+            tumor_temp[:, tk:-tk, tk:-tk] = (cent & (left | right) & (top | down))#.type(config.Tensor)
+        return tumor_temp
 
-    def calc_metric(self, brain_tensor, recovered_brain, restore_tumor, tumor_tensor):
-        acc_loss = self.pixelwise_loss.cpu()(recovered_brain, brain_tensor).item()
-        ttn = (tumor_tensor != 0).sum().item()
-        rtn = (restore_tumor != 0).sum().item()
-        tn = (restore_tumor * tumor_tensor != 0).sum().item()
-        pre_loss = 2 * tn / (ttn + rtn) if ttn + rtn else 1
-        return acc_loss, pre_loss
 
-    def test(self, dataset, acc=0.3):
-        acc_loss, pre_loss = 0, 0
-        print('lol')
-        for idx in tqdm(range(len(dataset))[:5], desc='Testing'):
+    def calc_metric(self, restore_tumor, tumor_tensor, iou_bound=None):
+        if iou_bound is None:
+            iou_bound = self.config.test.iou
+        SMOOTH = 1e-6
+        if self.config.test.tumor_min:
+            tt = (tumor_tensor>0).float().sum((1, 2))
+            rt = (restore_tumor>0).float().sum((1, 2))
+        intersection = ((restore_tumor>0) & (tumor_tensor>0)).float().sum((1, 2))
+        union = ((restore_tumor>0) | (tumor_tensor>0)).float().sum((1, 2))
+        iou = (intersection + SMOOTH) / (union + SMOOTH)
+        if self.config.test.tumor_min:
+            thresholded = ((iou > iou_bound) | ~((tt>self.config.test.tumor_min) ^ (rt>self.config.test.tumor_min))).float()
+        else:
+            thresholded = (iou > iou_bound).float()
+        return thresholded.mean()
+
+    def test(self, dataset, acc=None, iou_bound=None):
+        if acc is None:
+            acc = self.config.test.acc
+        loss = []
+        for idx in tqdm(range(len(dataset)), desc='Testing'):
             test_person = dataset.get_person(idx)
-            recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
+            _, restore_tumor = self.recover(test_person, dataset.transform, acc)
             test_tumor_tensor = test_person.get_tumor(dataset.transform)
-            test_brain_tensor = test_person(dataset.transform)
-            acc, pre = self.calc_metric(test_brain_tensor, recovered_brain, restore_tumor, test_tumor_tensor)
-            acc_loss += acc
-            pre_loss += pre
-        print(f'pixelwise loss on brain: {acc_loss / len(dataset)}')
-        print(f'tumor coverage: {pre_loss / len(dataset)}')
+            loss.append(self.calc_metric(restore_tumor, test_tumor_tensor, iou_bound))
+        print(f'tumor iou: {loss.mean()}')
+        return loss.mean()
 
     def test_show(self, dataset, acc=0.3, idx=None, show_flg=False):
         test_person = dataset.get_person(idx) if idx else dataset.get_random()
         recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
+        print(f'tumor iou: {self.calc_metric(restore_tumor, test_person.get_tumor(dataset.transform))}')
         fig = self.get_graph(test_person, dataset.transform, recovered_brain, restore_tumor)
         if show_flg:
             try:

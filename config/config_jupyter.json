@@ -28,6 +28,10 @@
         "max_batch": 42
     },
     "test": {
+        "acc": 0.3,
+        "iou": 0.5,
+        "tumor_min" : 30,
+        "thickness": 2,
         "type": "HGG",
         "batch_size": 1,
         "max_batch": 35
