@@ -6,23 +6,25 @@ import matplotlib.pyplot as plt
 
 from torchvision.utils import save_image
 from torch.autograd import Variable
+import torch.nn as nn
 
 import torch
 
-class BasicModel:
+class BasicModel(nn.Module):
     def __init__(self, config, train_flg=True):
+        super(BasicModel, self).__init__()
         self.name = config.struct.name
         self.config = config
         self.output = config.result
         self.img_shape = config.transforms.img_shape
         self.img_shape[0] *= self.config.train.batch_size if train_flg else self.config.test.batch_size
-        self.cuda = config.cuda and torch.cuda.is_available()
-        print(f'\033[3{2 if self.cuda else 1}m[Cuda: {self.cuda}]\033[0m')
+        self.cuda_flg = config.cuda and torch.cuda.is_available()
+        print(f'\033[3{2 if self.cuda_flg else 1}m[Cuda: {self.cuda_flg}]\033[0m')
         self.Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
         self.config += {'Tensor': self.Tensor, 'train_flg': train_flg}
 
     def __repr__(self):
-        return f'cuda: {self.cuda}\n' + \
+        return f'cuda: {self.cuda_flg}\n' + \
                f'config: {self.config}'
 
     def __str__(self):
@@ -103,7 +105,7 @@ class BasicModel:
     def calc_metric_all(self, dataset, acc=None, bound=None):
         loss = []
         target = []
-        for idx in tqdm(range(len(dataset))[:2], desc='Testing'):
+        for idx in tqdm(range(len(dataset))[5:10], desc='Testing'):
             test_person = dataset.get_person(idx)
             _, restore_tumor = self.recover(test_person, dataset.transform, acc)
             test_tumor_tensor = test_person.get_tumor(dataset.transform)
@@ -115,7 +117,7 @@ class BasicModel:
     def test_show(self, dataset, acc=0.3, idx=None, show_flg=False):
         test_person = dataset.get_person(idx) if idx else dataset.get_random()
         recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
-        print(f'tumor iou: {self.calc_metric(restore_tumor, test_person.get_tumor(dataset.transform), self.config.test.iou)[0].mean()}')
+        print(f'tumor loss: {self.calc_metric(restore_tumor, test_person.get_tumor(dataset.transform), self.config.test.bound)[0].mean()}')
         fig = self.get_graph(test_person, dataset.transform, recovered_brain, restore_tumor)
         if show_flg:
             try:

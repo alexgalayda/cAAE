@@ -18,14 +18,14 @@
         "to_tensor": true
     },
     "train": {
-        "batch_size": 2,
+        "batch_size": 8,
         "n_epochs": 200,
         "step_dis": 5,
         "lr": 0.0002,
         "b1": 0.5,
         "b2": 0.999,
         "sample_interval": 400,
-        "max_batch": 42
+        "max_batch": 1000
     },
     "test": {
         "metric": "sd",

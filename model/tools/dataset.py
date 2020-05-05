@@ -106,8 +106,8 @@ class Person:
     def set_tumor(self):
         self.tumor = f'{self.path[:-10]}_tumor.mha'
 
-    def plot(self):
-        self.get_brain().plot()
+    def plot(self, axis=0):
+        self.get_brain().plot(axis=axis)
 
     def get_brain(self, np_flg=False):
         img = ants.image_read(self.path)

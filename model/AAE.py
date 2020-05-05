@@ -24,7 +24,7 @@ class AAE(BasicModel):
         self.decoder = Decoder(self.config, self.img_shape)
         self.discriminator = Discriminator(self.config)
 
-        if self.cuda:
+        if self.cuda_flg:
             self.encoder.cuda()
             self.decoder.cuda()
             self.discriminator.cuda()
@@ -62,11 +62,6 @@ class AAE(BasicModel):
 
                 # Configure input
                 real_imgs = Variable(imgs.type(self.Tensor))
-
-                # -----------------
-                #  Train Generator
-                # -----------------
-
                 self.optimizer_G.zero_grad()
 
                 encoded_imgs = self.encoder(real_imgs)
@@ -79,10 +74,6 @@ class AAE(BasicModel):
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()
-
-                # ---------------------
-                #  Train Discriminator
-                # ---------------------
 
                 self.optimizer_D.zero_grad()
 
