@@ -89,7 +89,8 @@ class BiGAN(BasicModel):
                 
             if epoch % 10 == 0:
                 save_path = '/root/weights'
-                torch.save(self.encoder.state_dict(), os.path.join(save_path, f'generator_{self.name}_{epoch}'))
+                torch.save(self.encoder.state_dict(), os.path.join(save_path, f'encoder_{self.name}_{epoch}'))
+                torch.save(self.decoder.state_dict(), os.path.join(save_path, f'decoder_{self.name}_{epoch}'))
                 torch.save(self.discriminator.state_dict(),
                            os.path.join(save_path, f'discriminator_{self.name}_{epoch}'))
             self.tensorboard_callback(epoch, len(dataloader))

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 from tqdm import tqdm
 import numpy as np
@@ -59,40 +60,62 @@ class BasicModel:
             down = tumor[:, 2:-2, :-2*tk] > 0
             tumor_temp[:, tk:-tk, tk:-tk] = (cent & (left | right) & (top | down))#.type(config.Tensor)
         return tumor_temp
-
-
-    def calc_metric(self, restore_tumor, tumor_tensor, iou_bound=None):
-        if iou_bound is None:
-            iou_bound = self.config.test.iou
+    
+    def iou(self, restore_tumor, tumor_tensor):
         SMOOTH = 1e-6
-        if self.config.test.tumor_min:
-            tt = (tumor_tensor>0).float().sum((1, 2))
-            rt = (restore_tumor>0).float().sum((1, 2))
         intersection = ((restore_tumor>0) & (tumor_tensor>0)).float().sum((1, 2))
         union = ((restore_tumor>0) | (tumor_tensor>0)).float().sum((1, 2))
-        iou = (intersection + SMOOTH) / (union + SMOOTH)
-        if self.config.test.tumor_min:
-            thresholded = ((iou > iou_bound) | ~((tt>self.config.test.tumor_min) ^ (rt>self.config.test.tumor_min))).float()
+        return (intersection + SMOOTH) / (union + SMOOTH)
+        
+    def sd(self, restore_tumor, tumor_tensor):
+        SMOOTH = 1e-6
+        intersection = ((restore_tumor>0) & (tumor_tensor>0)).float().sum((1, 2))
+        union = ((restore_tumor>0).float() + (tumor_tensor>0).float()).sum((1, 2))
+        return 2*(intersection + SMOOTH) / (union + SMOOTH)
+    
+    def calc_metric(self, restore_tumor, tumor_tensor, bound=None):
+        if self.config.test.metric == 'iou':
+            mt = self.iou(restore_tumor, tumor_tensor)
+        elif self.config.test.metric == 'sd':
+            mt = self.sd(restore_tumor, tumor_tensor)
         else:
-            thresholded = (iou > iou_bound).float()
-        return thresholded.mean()
-
-    def test(self, dataset, acc=None, iou_bound=None):
-        if acc is None:
-            acc = self.config.test.acc
+            raise ValueError(f'Ждал sd или iou, а получил {self.config.test.metric}')
+            
+        tt = (tumor_tensor>0).float().sum((1, 2))
+        
+        if self.config.test.tumor_min:
+            rt = (restore_tumor>0).float().sum((1, 2))
+            mt[rt<self.config.test.tumor_min] = 0.
+            tt[tt<=self.config.test.tumor_min] = 0.
+            tt[tt>self.config.test.tumor_min] = 1.
+            
+        if bound:
+            mt[mt<bound] = 0.
+            mt[mt>=bound] = 1.
+        return mt, tt
+            
+    def test(self, dataset, acc=None, bound=None):
+        if bound is None:
+            bound = self.config.test.bound
+        test, _ = self.calc_metric(dataset, acc, bound)
+        return test.mean()
+    
+    def calc_metric_all(self, dataset, acc=None, bound=None):
         loss = []
-        for idx in tqdm(range(len(dataset)), desc='Testing'):
+        target = []
+        for idx in tqdm(range(len(dataset))[:2], desc='Testing'):
             test_person = dataset.get_person(idx)
             _, restore_tumor = self.recover(test_person, dataset.transform, acc)
             test_tumor_tensor = test_person.get_tumor(dataset.transform)
-            loss.append(self.calc_metric(restore_tumor, test_tumor_tensor, iou_bound))
-        print(f'tumor iou: {loss.mean()}')
-        return loss.mean()
+            test, utarget = self.calc_metric(restore_tumor, test_tumor_tensor, bound)
+            loss.extend(test)
+            target.extend(utarget)
+        return self.Tensor(loss), self.Tensor(target)
 
     def test_show(self, dataset, acc=0.3, idx=None, show_flg=False):
         test_person = dataset.get_person(idx) if idx else dataset.get_random()
         recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
-        print(f'tumor iou: {self.calc_metric(restore_tumor, test_person.get_tumor(dataset.transform))}')
+        print(f'tumor iou: {self.calc_metric(restore_tumor, test_person.get_tumor(dataset.transform), self.config.test.iou)[0].mean()}')
         fig = self.get_graph(test_person, dataset.transform, recovered_brain, restore_tumor)
         if show_flg:
             try:

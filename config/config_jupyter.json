@@ -28,12 +28,13 @@
         "max_batch": 42
     },
     "test": {
+        "metric": "sd",
         "acc": 0.3,
-        "iou": 0.5,
+        "bound": 0.6,
         "tumor_min" : 30,
         "thickness": 2,
         "type": "HGG",
         "batch_size": 1,
-        "max_batch": 35
+        "max_batch": 100
     }
 }
