@@ -17,11 +17,7 @@ I have already done:
 * [tensorboard](https://www.tensorflow.org/tensorboard)
 * docker container
 * [AAE](https://github.com/eriklindernoren/PyTorch-GAN), cAAE
-* Test jupyter notebook
-
-I have to do:
-* unit test
-* CI
+* Tutorial jupyter notebook
 
 I'll do it if time is left:
 * Two-dimensional convolution is used instead of three-dimensional
@@ -64,3 +60,5 @@ We will test on the [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html) 
 To access the dataset, follow [the instructions](https://www.med.upenn.edu/sbia/brats2018/registration.html) on the official website.
 At the end you should have a `BRATS{№}_Training.zip`. Place the archive in the folder where you want to save the dataset.
 
+### Tutorial
+There are 4 jupyter notebooks in the folder `jupyter` with detailed instructions on what and how works

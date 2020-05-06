@@ -7,7 +7,7 @@
     "slice": "",
     "cuda": true,
     "struct": {
-        "name": "BiGAN",
+        "name": "ResDCGAN",
         "latent_dim": 128,
         "lambda_gp": 0.5
     },
@@ -18,14 +18,14 @@
         "to_tensor": true
     },
     "train": {
-        "batch_size": 16,
-        "n_epochs": 200,
+        "batch_size": 32,
+        "n_epochs": 150,
         "step_dis": 5,
         "lr": 0.0002,
         "b1": 0.5,
         "b2": 0.999,
         "sample_interval": 400,
-        "max_batch": 1000
+        "max_batch": 800
     },
     "test": {
         "metric": "sd",
