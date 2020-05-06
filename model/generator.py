@@ -17,7 +17,8 @@ def generator(config, train_flg):
         trf.append(ants.iMath_normalize)
     if config.transforms.resize:
         def resize(obj, img_size=config.transforms.img_size):
-            return obj.resample_image((img_size, img_size, obj.shape[2]), 1, 0)
+            return obj.resample_image((img_size, img_size, img_size), 1, 0)
+#             return obj.resample_image((img_size, img_size, obj.shape[2]), 1, 0)
         trf.append(resize)
     trf.append(lambda x: np.flip(x.numpy(), 1).astype(np.float32) if train_flg else x.numpy().astype(np.float32))
     if config.transforms.to_tensor:

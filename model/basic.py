@@ -16,8 +16,9 @@ class BasicModel(nn.Module):
         self.name = config.struct.name
         self.config = config
         self.output = config.result
+        config.transforms.img_shape = [self.config.train.batch_size if 
+                          train_flg else self.config.test.batch_size] + config.transforms.img_shape
         self.img_shape = config.transforms.img_shape
-        self.img_shape[0] *= self.config.train.batch_size if train_flg else self.config.test.batch_size
         self.cuda_flg = config.cuda and torch.cuda.is_available()
         print(f'\033[3{2 if self.cuda_flg else 1}m[Cuda: {self.cuda_flg}]\033[0m')
         self.Tensor = torch.cuda.FloatTensor if self.cuda else torch.FloatTensor
@@ -40,7 +41,7 @@ class BasicModel(nn.Module):
         if acc is None:
             acc = self.config.test.acc
         # get brain
-        test_brain_tensor = Variable(person(transform).type(self.Tensor))
+        test_brain_tensor = person(transform).type(self.Tensor)
         recovered_brain = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
         # get mask
         mask = person.get_mask()
@@ -48,8 +49,8 @@ class BasicModel(nn.Module):
         recovered_brain = torch.clamp(recovered_brain, 0, 1)
         # get tumor
         restore_tumor = abs(recovered_brain - test_brain_tensor.cpu())
-        restore_tumor[restore_tumor < acc] = 0
-        restore_tumor[restore_tumor >= acc] = 1
+        restore_tumor[restore_tumor <= acc] = 0
+        restore_tumor[restore_tumor > acc] = 1
         return recovered_brain, self.del_border(restore_tumor, self.config.test.thickness)
     
     def del_border(self, tumor, tk):
@@ -60,7 +61,7 @@ class BasicModel(nn.Module):
             right = tumor[:, 2*tk:, 2:-2] > 0
             top = tumor[:, 2:-2, 2*tk:] > 0
             down = tumor[:, 2:-2, :-2*tk] > 0
-            tumor_temp[:, tk:-tk, tk:-tk] = (cent & (left | right) & (top | down))#.type(config.Tensor)
+            tumor_temp[:, tk:-tk, tk:-tk] = (cent & (left | right) & (top | down))
         return tumor_temp
     
     def iou(self, restore_tumor, tumor_tensor):
@@ -105,7 +106,7 @@ class BasicModel(nn.Module):
     def calc_metric_all(self, dataset, acc=None, bound=None):
         loss = []
         target = []
-        for idx in tqdm(range(len(dataset))[5:10], desc='Testing'):
+        for idx in tqdm(range(len(dataset)), desc='Testing'):
             test_person = dataset.get_person(idx)
             _, restore_tumor = self.recover(test_person, dataset.transform, acc)
             test_tumor_tensor = test_person.get_tumor(dataset.transform)

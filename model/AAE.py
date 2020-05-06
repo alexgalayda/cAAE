@@ -21,7 +21,7 @@ class AAE(BasicModel):
 
         # Initialize generator and discriminator
         self.encoder = Encoder(self.config)
-        self.decoder = Decoder(self.config, self.img_shape)
+        self.decoder = Decoder(self.config)
         self.discriminator = Discriminator(self.config)
 
         if self.cuda_flg:
@@ -55,7 +55,7 @@ class AAE(BasicModel):
         dataloader = dataset.dataloader()
         for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch', leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
-                imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
+                imgs = batch.reshape(-1, self.img_shape[-2], self.img_shape[-1])
                 # Adversarial ground truths
                 valid = Variable(self.Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
                 fake = Variable(self.Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
@@ -66,11 +66,10 @@ class AAE(BasicModel):
 
                 encoded_imgs = self.encoder(real_imgs)
                 decoded_imgs = self.decoder(encoded_imgs)
-
                 # Loss measures generator's ability to fool the discriminator
                 g_loss = \
-                    0.01 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
-                    0.99 * self.pixelwise_loss(decoded_imgs, real_imgs)
+                    0.001 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
+                    0.999 * self.pixelwise_loss(decoded_imgs, real_imgs)
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()
@@ -135,10 +134,10 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, config, img_shape):
+    def __init__(self, config):
         super(Decoder, self).__init__()
         self.config = config
-        self.img_shape = img_shape[1:]
+        self.img_shape = config.transforms.img_shape[-2:]
 
         self.model_prep = nn.Sequential(
             nn.Linear(self.config.struct.latent_dim, 512),
@@ -163,7 +162,8 @@ class Decoder(nn.Module):
 
     def forward(self, z):
         img_conv = self.model_prep(z).unsqueeze(2).unsqueeze(3)
-        img = self.model(img_conv).view(-1, *self.img_shape)
+        img = self.model(img_conv)
+        img = img.view(-1, *self.img_shape)
         return img
 
 

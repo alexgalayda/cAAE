@@ -61,7 +61,7 @@ class ResDCGAN(BasicModel):
         for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch',
                           leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
-                imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
+                imgs = batch.reshape(-1, self.img_shape[-2], self.img_shape[-1])
                 # Adversarial ground truths
                 valid = Variable(self.Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
                 fake = Variable(self.Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False)
@@ -118,7 +118,8 @@ class Encoder(nn.Module):
             ResBlockDown(256, 512),
             nn.AvgPool2d(2),
             nn.Flatten(),
-            nn.Linear(512, self.config.struct.latent_dim)
+            nn.Linear(512, self.config.struct.latent_dim),
+            nn.Tanh()
         )
 
     def forward(self, img):
@@ -130,6 +131,7 @@ class Decoder(nn.Module):
     def __init__(self, config):
         super(Decoder, self).__init__()
         self.config = config
+        self.img_shape = config.transforms.img_shape[-2:]
 
         self.model_prep = nn.Sequential(
             nn.Linear(self.config.struct.latent_dim, 512),
@@ -148,7 +150,7 @@ class Decoder(nn.Module):
 
     def forward(self, z):
         img_conv = self.model_prep(z).unsqueeze(2).unsqueeze(3)
-        img = self.model(img_conv).view(-1, *self.config.transforms.img_shape[1:])
+        img = self.model(img_conv).view(-1, *self.img_shape)
         return img
 
 

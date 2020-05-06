@@ -59,7 +59,7 @@ class BiGAN(BasicModel):
         dataloader = dataset.dataloader()
         for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch', leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
-                imgs = batch.reshape(-1, self.img_shape[1], self.img_shape[2])
+                imgs = batch.reshape(-1, self.img_shape[-2], self.img_shape[-1])
                 # Adversarial ground truths
                 
                 valid = Variable(self.Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False)
@@ -100,7 +100,7 @@ class BiGAN(BasicModel):
 class Encoder(nn.Module):
     def __init__(self, config):
         super(Encoder, self).__init__()
-        self.config = config
+        self.config = config        
         self.model = nn.Sequential(
             nn.Conv2d(1, 64, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
@@ -139,7 +139,7 @@ class Decoder(nn.Module):
     def __init__(self, config):
         super(Decoder, self).__init__()
         self.config = config
-        self.img_shape = self.config.transforms.img_shape[1:]
+        self.img_shape = self.config.transforms.img_shape[-2:]
 
         self.model_prep = nn.Sequential(
             nn.Linear(self.config.struct.latent_dim, 512),
