@@ -35,6 +35,6 @@
         "thickness": 2,
         "type": "HGG",
         "batch_size": 1,
-        "max_batch": 100
+        "max_batch": 1000
     }
 }
