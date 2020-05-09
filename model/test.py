@@ -1,6 +1,6 @@
 import argparse, sys
 sys.path.append('/root')
-# sys.path.append('/root/model')
+# sys.path.append('/root/cAAE')
 from model.tools.config import read_conf
 from model.generator import generator, net
 

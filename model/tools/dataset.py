@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import uuid
-
+from tqdm import tqdm
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -59,8 +59,13 @@ class MRTDataset(Dataset):
             idx = idx.tolist()
         return self.get_person(idx)(self.transform)
 
-    def dataloader(self, shuffle=True):
-        return DataLoader(self,
+    def dataloader(self, shuffle=True, tensor=None):
+        ds = []
+        if tensor:
+            for i in tqdm(self, desc='Download dataset'):
+                ds.append(i.unsqueeze(0))
+            ds = torch.cat(ds, 0).type(tensor)
+        return DataLoader(ds if tensor else self,
                           batch_size=self.config.train.batch_size if self.health_flg else self.config.test.batch_size,
                           shuffle=shuffle)
 
