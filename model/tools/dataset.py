@@ -59,12 +59,27 @@ class MRTDataset(Dataset):
             idx = idx.tolist()
         return self.get_person(idx)(self.transform)
 
-    def dataloader(self, shuffle=True, tensor=None):
+    def to_tensor(self, tensor, type_tr=None):
         ds = []
-        if tensor:
+        if type_tr == 'tumor':
+            for i in tqdm(range(len(self)), desc='Download tumor dataset'):
+                test_person = self.get_person(i)
+                test_tumor_tensor = test_person.get_tumor(self.transform).type(tensor)
+                ds.append(test_tumor_tensor.unsqueeze(0))
+        elif type_tr == 'mask':
+            for i in tqdm(range(len(self)), desc='Download mask dataset'):
+                test_person = self.get_person(i)
+                mask = self.transform(test_person.get_mask()).type(tensor)
+                ds.append(mask.unsqueeze(0))
+        else:
             for i in tqdm(self, desc='Download dataset'):
                 ds.append(i.unsqueeze(0))
-            ds = torch.cat(ds, 0).type(tensor)
+        ds = torch.cat(ds, 0).type(tensor)
+        return ds
+
+    def dataloader(self, shuffle=True, tensor=None):
+        if tensor:
+            ds = self.to_tensor(tensor)
         return DataLoader(ds if tensor else self,
                           batch_size=self.config.train.batch_size if self.health_flg else self.config.test.batch_size,
                           shuffle=shuffle)

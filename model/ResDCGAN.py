@@ -22,7 +22,6 @@ class ResDCGAN(BasicModel):
         # Use binary cross-entropy loss
         self.adversarial_loss = torch.nn.BCELoss()
         self.pixelwise_loss = torch.nn.L1Loss()
-        self.latent_loss = torch.nn.MSELoss()
 
         # Initialize generator and discriminator
         self.encoder = Encoder(self.config)
@@ -57,7 +56,7 @@ class ResDCGAN(BasicModel):
         self.running_loss_g = 0
         self.running_loss_d = 0
 
-        dataloader = dataset.dataloader()
+        dataloader = dataset.dataloader(tensor=self.Tensor)
         for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch',
                           leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
@@ -75,8 +74,8 @@ class ResDCGAN(BasicModel):
 
                 # Loss measures generator's ability to fool the discriminator
                 g_loss = \
-                    0.01 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
-                    0.99 * self.pixelwise_loss(decoded_imgs, real_imgs)
+                    0.001 * self.adversarial_loss(self.discriminator(encoded_imgs), valid) + \
+                    0.999 * self.pixelwise_loss(decoded_imgs, real_imgs)
                 g_loss.backward()
                 self.optimizer_G.step()
                 self.running_loss_g += g_loss.item()

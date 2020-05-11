@@ -16,6 +16,7 @@ RUN rm requirements.txt
 WORKDIR /root
 ADD model /root/model
 ADD config /root/config
+ADD jupyter /root/jupyter
 
 WORKDIR /root/
 CMD jupyter notebook
