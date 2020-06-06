@@ -19,8 +19,10 @@ class BiGAN(BasicModel):
     def __init__(self, config, train_flg=True):
         super(BiGAN, self).__init__(config, train_flg)
 
-        self.discriminator_loss = torch.nn.BCELoss()
-        self.adversarial_loss = torch.nn.BCELoss()
+        # self.discriminator_loss = torch.nn.BCELoss()
+        self.discriminator_loss = torch.nn.BCEWithLogitsLoss()
+        # self.adversarial_loss = torch.nn.BCELoss()
+        self.adversarial_loss = torch.nn.BCEWithLogitsLoss()
         
         self.encoder = Encoder(self.config)
         self.decoder = Decoder(self.config)
@@ -56,7 +58,7 @@ class BiGAN(BasicModel):
         self.running_loss_g = 0
         self.running_loss_d = 0
 
-        dataloader = dataset.dataloader()
+        dataloader = dataset.dataloader(tensor=self.Tensor)
         for epoch in tqdm(range(self.config.train.n_epochs), total=self.config.train.n_epochs, desc='Epoch', leave=True):
             for batch in tqdm(dataloader, total=len(dataloader), desc='Bath'):
                 imgs = batch.reshape(-1, self.img_shape[-2], self.img_shape[-1])
@@ -198,7 +200,7 @@ class Discriminator(nn.Module):
             nn.Linear(256, 128),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(128, 1),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
 
     def forward(self, z, img):

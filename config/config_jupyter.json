@@ -18,8 +18,8 @@
         "to_tensor": true
     },
     "train": {
-        "batch_size": 8,
-        "n_epochs": 200,
+        "batch_size": 64,
+        "n_epochs": 500,
         "step_dis": 5,
         "lr": 0.0002,
         "b1": 0.5,
@@ -35,6 +35,6 @@
         "thickness": 2,
         "type": "HGG",
         "batch_size": 1,
-        "max_batch": 1000
+        "max_batch": 5q0
     }
 }

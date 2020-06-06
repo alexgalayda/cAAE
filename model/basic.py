@@ -1,13 +1,14 @@
+# -*- coding: utf-8 -*-
 import os
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 from torchvision.utils import save_image
 from torch.autograd import Variable
 import torch.nn as nn
 
-import torch
 
 class BasicModel(nn.Module):
     def __init__(self, config, train_flg=True):
@@ -36,22 +37,24 @@ class BasicModel(nn.Module):
         gen_imgs = self.decoder(z)
         save_image(gen_imgs.unsqueeze(1), os.path.join(self.output, f"{batches_done}.png"), nrow=n_row, normalize=True)
 
-    def recover(self, person, transform, acc=None):
+    def recover(self, dataset, acc=None, dst=None, dst_mask=None):
         if acc is None:
             acc = self.config.test.acc
         # get brain
-        test_brain_tensor = person(transform).type(self.Tensor)
-        recovered_brain = self.decoder(self.encoder(test_brain_tensor)).data.cpu()
-        # get mask
-        mask = person.get_mask()
-        recovered_brain *= transform(mask)
-        recovered_brain = torch.clamp(recovered_brain, 0, 1)
+        if dst is None:
+            dst = dataset.to_tensor(tensor=self.Tensor).reshape(-1, self.img_shape[-2], self.img_shape[-1])
+        if dst_mask is None:
+            dst_mask = dataset.to_tensor(tensor=self.Tensor, type_tr='mask').reshape(-1, self.img_shape[-2], self.img_shape[-1])
+        recover_dst = self.decoder(self.encoder(dst))
+        recover_dst = torch.clamp(recover_dst, 0, 1)
+
         # get tumor
-        restore_tumor = abs(recovered_brain - test_brain_tensor.cpu())
+        restore_tumor = torch.abs(recover_dst - dst)
+        restore_tumor *= dst_mask
         restore_tumor[restore_tumor <= acc] = 0
         restore_tumor[restore_tumor > acc] = 1
-        return recovered_brain, self.del_border(restore_tumor, self.config.test.thickness)
-    
+        return recover_dst, self.del_border(restore_tumor, self.config.test.thickness)
+        
     def del_border(self, tumor, tk):
         tumor_temp = tumor.clone()
         if tk:
@@ -103,38 +106,43 @@ class BasicModel(nn.Module):
         return test.mean()
     
     def calc_metric_all(self, dataset, acc=None, bound=None):
-        loss = []
-        target = []
-        for idx in tqdm(range(len(dataset)), desc='Testing'):
-            test_person = dataset.get_person(idx)
-            _, restore_tumor = self.recover(test_person, dataset.transform, acc)
-            test_tumor_tensor = test_person.get_tumor(dataset.transform)
-            test, utarget = self.calc_metric(restore_tumor, test_tumor_tensor, bound)
-            loss.extend(test)
-            target.extend(utarget)
-        return self.Tensor(loss), self.Tensor(target)
+        dst_tumor = dataset.to_tensor(tensor=self.Tensor, type_tr='tumor').reshape(-1, self.img_shape[-2], self.img_shape[-1])
+        _, restore_tumor = self.recover(dataset, acc)
+        test, target = self.calc_metric(restore_tumor, dst_tumor, bound)
+        return self.Tensor(test), self.Tensor(target)
 
     def test_show(self, dataset, acc=0.3, idx=None, show_flg=False):
         test_person = dataset.get_person(idx) if idx else dataset.get_random()
-        recovered_brain, restore_tumor = self.recover(test_person, dataset.transform, acc)
-        print(f'tumor loss: {self.calc_metric(restore_tumor, test_person.get_tumor(dataset.transform), self.config.test.bound)[0].mean()}')
-        fig = self.get_graph(test_person, dataset.transform, recovered_brain, restore_tumor)
+        test_brain = test_person(dataset.transform).type(self.Tensor)
+        test_mask = dataset.transform(test_person.get_mask()).type(self.Tensor)
+        test_tumor = test_person.get_tumor(dataset.transform).type(self.Tensor)
+
+        recover_brain = self.decoder(self.encoder(test_brain))
+        recover_brain = torch.clamp(recover_brain, 0, 1)
+        
+        restore_tumor = torch.abs(recover_brain - test_brain)
+        restore_tumor *= test_mask
+        restore_tumor[restore_tumor <= acc] = 0
+        restore_tumor[restore_tumor > acc] = 1
+        restore_tumor = self.del_border(restore_tumor, self.config.test.thickness)
+        
+        fig = self.get_graph(test_brain, recover_brain, test_tumor, restore_tumor)
         if show_flg:
             try:
                 fig.show()
             except Exception as e:
                 print(f'Cann\'t show result\n{e}')
 
-    def get_graph(self, person, transform, recovered_brain, restore_tumor):
-        n = int(recovered_brain.shape[0] * 2 / 3)
+    def get_graph(self, test_brain, recover_brain, test_tumor, restore_tumor):
+        n = int(recover_brain.shape[0] * 2 / 3)
         fig, axs = plt.subplots(2, 2)
-        axs[0, 0].imshow(recovered_brain[n, :, :])
+        axs[0, 0].imshow(recover_brain.cpu().detach().numpy()[n, :, :])
         axs[0, 0].set_title('Recovered brain')
-        axs[0, 1].imshow(restore_tumor[n, :, :])
-        axs[0, 1].set_title('Founded tumor')
-        axs[1, 0].imshow(person(transform)[n, :, :])
-        axs[1, 0].set_title('Original brain')
-        axs[1, 1].imshow(person.get_tumor(transform)[n, :, :])
+        axs[1, 0].imshow(restore_tumor.cpu().detach().numpy()[n, :, :])
+        axs[1, 0].set_title('Founded tumor')
+        axs[0, 1].imshow(test_brain.cpu().detach().numpy()[n, :, :])
+        axs[0, 1].set_title('Original brain')
+        axs[1, 1].imshow(test_tumor.cpu().detach().numpy()[n, :, :])
         axs[1, 1].set_title('Original tumor')
         fig.savefig(os.path.join(self.output, f'random_tumor_{self.name}.png'))
         return fig

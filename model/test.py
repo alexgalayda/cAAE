@@ -1,15 +1,19 @@
 import argparse, sys
 sys.path.append('/root')
 # sys.path.append('/root/cAAE')
+import torch
 from model.tools.config import read_conf
 from model.generator import generator, net
 
 
 def test(config, load_path, acc=0.3):
+    torch.backends.cudnn.benchmark=True
     dataset = generator(config, train_flg=False)
     config.transforms += {'img_shape': dataset.get_img_shape()}
-    model = net[config.struct.name](config, train_flg=False)
-    model.load(load_path)
+    model = net[config.struct.name](config)
+    if model.cuda_flg and (torch.cuda.device_count() > 1):
+        model = nn.DataParallel(model)
+        model.cuda()
     model.test(dataset, acc)
 
 

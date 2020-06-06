@@ -16,7 +16,8 @@ class AAE(BasicModel):
         super(AAE, self).__init__(config, train_flg)
 
         # Use binary cross-entropy loss
-        self.adversarial_loss = torch.nn.BCELoss()
+        # self.adversarial_loss = torch.nn.BCELoss()
+        self.adversarial_loss = torch.nn.BCEWithLogitsLoss()
         self.pixelwise_loss = torch.nn.L1Loss()
 
         # Initialize generator and discriminator
@@ -180,7 +181,7 @@ class Discriminator(nn.Module):
             nn.Linear(256, 128),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(128, 1),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
 
     def forward(self, z):
