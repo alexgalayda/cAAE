@@ -126,7 +126,7 @@ training () {
     echo $docker_build
     $docker_build
 
-    mkdir $RESULT
+    mkdir -777  $RESULT
     echo running Adversarial Autoencoder example...
     docker_run="docker run
     --name ${NAME}_train_cont
@@ -161,7 +161,7 @@ testing () {
     echo $docker_build
     $docker_build
 
-    mkdir $RESULT
+    mkdir -m 777 $RESULT
     echo running Adversarial Autoencoder example...
     docker_run="docker run
     --name ${NAME}_test_cont
@@ -182,7 +182,7 @@ testing () {
 }
 
 jupyter () {
-    mkdir $HCP
+    mkdir -m 777 $HCP
     if [ "$(ls -A $HCP)" ]
     then
         read -p "There is already some kind of dataset in the $HCP folder. Are you sure? " -n 1 -r
@@ -194,7 +194,7 @@ jupyter () {
     else
         download_HCP
     fi
-    mkdir $BRATS
+    mkdir -m 777 $BRATS
     if [ "$(ls -A $BRATS)" ]
         then
         read -p "There is already some kind of dataset in the $BRATS folder. Are you sure? " -n 1 -r
@@ -220,7 +220,7 @@ jupyter () {
     echo $docker_build
     $docker_build
 
-    mkdir $RESULT
+    mkdir -m 777 $RESULT
     echo running Adversarial Autoencoder example...
     docker_run="docker run
     --name ${NAME}_jupyter_cont
@@ -241,7 +241,7 @@ jupyter () {
 }
 
 test() {
-    mkdir $HCP
+    mkdir -m 777 $HCP
     if [ "$(ls -A $HCP)" ]
     then
         read -p "There is already some kind of dataset in the $HCP folder. Are you sure? " -n 1 -r
@@ -253,7 +253,7 @@ test() {
     else
         download_HCP
     fi
-    mkdir $WEIGHTS
+    mkdir -m 777 $WEIGHTS
     if [ "$(ls -A $WEIGHTS)" ]
         then
         read -p "There is already some kind of weights in the $WEIGHTS folder. Are you sure? " -n 1 -r
@@ -265,7 +265,7 @@ test() {
     else
         training
     fi
-    mkdir $BRATS
+    mkdir -m 777 $BRATS
     if [ "$(ls -A $BRATS)" ]
         then
         read -p "There is already some kind of dataset in the $BRATS folder. Are you sure? " -n 1 -r
