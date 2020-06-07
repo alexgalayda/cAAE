@@ -16,7 +16,7 @@ I have already done:
 * automatic processing of [BRATS](https://www.med.upenn.edu/sbia/brats2018/data.html)
 * [tensorboard](https://www.tensorflow.org/tensorboard)
 * docker container
-* [AAE](https://github.com/eriklindernoren/PyTorch-GAN), cAAE
+* [AAE](https://github.com/eriklindernoren/PyTorch-GAN), ResDCGAN, BiGAN
 * Tutorial jupyter notebook
 
 I'll do it if time is left:
