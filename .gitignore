@@ -2,7 +2,7 @@
 *.swo
 # if u dont want commit ur real secret key in git repo, 
 # u can use: git update-index --assume-unchanged credentials
-credentials
+# credentials
 .idea
 *__pycache__*
 *.ipynb_checkpoints*
