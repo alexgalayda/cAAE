@@ -1,15 +1,15 @@
 CONFIG=config/config.env
 include ${CONFIG}
 
-all: download
+all: downloadHCP
 
 download: downloadHCP downloadBRATS
 
 downloadHCP:
-	echo lol
+	docker-compose -f ${COMPOSE_HCP} --env-file ${CONFIG} up --build --detach
 
 downloadBRATS:
-	echo kek
+	docker-compose -f ${COMPOSE_BRATS} --env-file ${CONFIG} up --build --detach
 
 #train:
 

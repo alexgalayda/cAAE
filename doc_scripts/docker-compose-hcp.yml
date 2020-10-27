@@ -1,0 +1,7 @@
+version: "3.8"
+services:
+        HCP:
+                build:
+                        context: $BUILD_CONTEXT
+                        dockerfile: $DOCKERFILE_PATH/Dockerfile_HCP
+
