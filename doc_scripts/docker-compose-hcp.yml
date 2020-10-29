@@ -4,4 +4,7 @@ services:
                 build:
                         context: $BUILD_CONTEXT
                         dockerfile: $DOCKERFILE_PATH/Dockerfile_HCP
-
+                image: ${NAME}_hcp_image
+                container_name: ${NAME}_hcp_container
+                tty: true
+                stdin_open: true

@@ -11,6 +11,8 @@ downloadHCP:
 downloadBRATS:
 	docker-compose -f ${COMPOSE_BRATS} --env-file ${CONFIG} up --build --detach
 
+attach:
+	docker attach ${NAME}_hcp_container
 #train:
 
 #test:
