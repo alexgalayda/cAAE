@@ -8,5 +8,6 @@ services:
                 container_name: ${NAME}_hcp_container
                 tty: true
                 stdin_open: true
+                #command: python copy_dataset_HCP.py
                 volumes:
                         - /mnt/storage/HCP:/mnt/HCP
