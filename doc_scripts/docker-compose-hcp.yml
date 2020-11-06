@@ -8,3 +8,5 @@ services:
                 container_name: ${NAME}_hcp_container
                 tty: true
                 stdin_open: true
+                volumes:
+                        - /mnt/storage/HCP:/mnt/HCP

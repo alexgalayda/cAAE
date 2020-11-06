@@ -1,14 +1,16 @@
 FROM nvcr.io/nvidia/pytorch:19.12-py3
 
+#ARG PROJECT_PATH
 #ARG HCP_CONT
 #ENV HCP_CONT=$HCP_CONT
 
 WORKDIR /root
-COPY requirements_HCP.txt requirements.txt
+COPY ./doc_scripts/requirements_HCP.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 RUN rm requirements.txt
 
-#COPY copy_dataset_HCP.py copy_dataset_HCP.py
+WORKDIR /root
+COPY ./doc_scripts/copy_dataset_HCP.py copy_dataset_HCP.py
 COPY ./config/credentials .aws/credentials
 
 #CMD python3 copy_dataset_HCP.py -p $HCP_CONT
