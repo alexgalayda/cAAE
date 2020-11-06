@@ -5,10 +5,8 @@ import boto3
 import botocore
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-s", "--struct", help="save original struct",
-                    action="store_true")
-parser.add_argument("-p", "--path", default='/root/HCP/',
-                    help="path to save dataset")
+parser.add_argument("-s", "--struct", default=False, help="save original struct", action="store_true")
+parser.add_argument("-p", "--path", default='/mnt/HCP/', help="path to save dataset")
 args = parser.parse_args()
 
 # Init variables

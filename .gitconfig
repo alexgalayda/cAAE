@@ -1,4 +1,4 @@
 freeze = update-index --assume-unchanged
 thaw = update-index --no-assume-unchanged
-git freeze doc_scripts/get_dataset/credentials
+git freeze config/credentials
 #git thaw foo.rb
