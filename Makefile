@@ -1,14 +1,15 @@
 CONFIG=config/config.env
 include ${CONFIG}
 
-all: downloadHCP
+all: downloadHCP attach
 
 download: downloadHCP downloadBRATS
 
 downloadHCP:
 	mkdir -p ${STORAGE}
 	docker-compose -f ${COMPOSE_HCP} --env-file ${CONFIG} up --build --detach
-	#docker attach ${NAME}_hcp_container
+attach:
+	docker attach ${NAME}_hcp_container
 rm:
 	docker rm ${NAME}_hcp_container
 downloadBRATS:

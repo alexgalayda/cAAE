@@ -4,6 +4,7 @@ import pandas
 import boto3
 import botocore
 import argparse
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--struct", default=False, help="save original struct", action="store_true")
 parser.add_argument("-p", "--path", default='/mnt/HCP/', help="path to save dataset")
