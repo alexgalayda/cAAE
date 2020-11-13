@@ -1,0 +1,9 @@
+scipy==1.2.1
+pillow==4.3.0
+nibabel==3.2.0
+statsmodels==0.12.1
+webcolors==1.11.1
+chart_studio
+sklearn
+#antspyx==0.2.4
+tqdm

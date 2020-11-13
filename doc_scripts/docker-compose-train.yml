@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+        Train:
+                build:
+                        context: $BUILD_CONTEXT
+                        dockerfile: $DOCKERFILE_PATH/Dockerfile_train
+                image: ${NAME}_train_image
+                container_name: ${NAME}_train_container
+                tty: true
+                stdin_open: true
+                command: /bin/bash 
+                #command: python3 ./model/train.py
+                volumes:
+                        - /mnt/storage/HCP:/mnt/HCP
+                        - /mnt/storage/TRAIN:/mnt/TRAIN

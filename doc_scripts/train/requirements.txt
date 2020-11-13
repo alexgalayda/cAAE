@@ -1,4 +1,0 @@
-scipy==1.2.1
-pillow==4.3.0
-antspyx==0.2.4
-tqdm

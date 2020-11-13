@@ -1,0 +1,21 @@
+FROM nvcr.io/nvidia/pytorch:19.12-py3
+
+WORKDIR /root
+COPY ./doc_scripts/setup.patch ./setup.patch
+RUN git clone https://github.com/ANTsX/ANTsPy
+WORKDIR /root/ANTsPy
+RUN git apply ../setup.patch
+RUN python setup.py install
+
+WORKDIR /root
+COPY ./doc_scripts/requirements_train.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN rm requirements.txt
+
+#jupyter notebook
+#RUN jupyter notebook --generate-config
+#COPY config/jupyter_notebook_config.py /root/.jupyter/jupyter_notebook_config.py
+
+WORKDIR /root
+ADD config /root/config
+ADD model /root/model
